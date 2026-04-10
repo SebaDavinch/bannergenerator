@@ -1,0 +1,1714 @@
+.app-shell {
+  --brand-accent: var(--color-red);
+  --brand-accent-bright: var(--color-red-bright);
+  --brand-accent-deep: var(--color-red-deep);
+  --brand-accent-soft: rgba(214, 24, 30, 0.12);
+  --brand-accent-soft-strong: rgba(214, 24, 30, 0.18);
+  --brand-accent-outline: rgba(214, 24, 30, 0.42);
+  --brand-accent-shadow: rgba(214, 24, 30, 0.24);
+  --brand-accent-gradient: linear-gradient(180deg, rgba(214, 24, 30, 0.98), rgba(186, 17, 22, 0.98));
+  --brand-chip-gradient: linear-gradient(180deg, rgba(214, 24, 30, 0.98), rgba(186, 17, 22, 0.98));
+  --brand-chip-shadow: rgba(214, 24, 30, 0.24);
+  --brand-highlight: var(--color-red-bright);
+  --brand-panel-background: linear-gradient(180deg, rgba(10, 12, 16, 0.98), rgba(23, 27, 34, 0.95));
+  --brand-preview-chip-background: rgba(214, 24, 30, 0.08);
+  display: grid;
+  grid-template-columns: 420px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-shell.brand-rag {
+  --brand-accent: #43bbd1;
+  --brand-accent-bright: #7dd7e3;
+  --brand-accent-deep: #2f63df;
+  --brand-accent-soft: rgba(67, 187, 209, 0.14);
+  --brand-accent-soft-strong: rgba(67, 187, 209, 0.2);
+  --brand-accent-outline: rgba(67, 187, 209, 0.42);
+  --brand-accent-shadow: rgba(67, 187, 209, 0.22);
+  --brand-accent-gradient: linear-gradient(180deg, #55c7d8 0%, #2f63df 100%);
+  --brand-chip-gradient: linear-gradient(180deg, #55c7d8 0%, #2f63df 100%);
+  --brand-chip-shadow: rgba(67, 187, 209, 0.28);
+  --brand-highlight: #bfd845;
+  --brand-panel-background:
+    radial-gradient(circle at 12% 0%, rgba(191, 216, 69, 0.12), transparent 26%),
+    radial-gradient(circle at 100% 10%, rgba(67, 187, 209, 0.11), transparent 30%),
+    linear-gradient(180deg, rgba(10, 12, 16, 0.98), rgba(20, 24, 33, 0.96));
+  --brand-preview-chip-background: rgba(67, 187, 209, 0.12);
+}
+
+.control-panel {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 32px;
+  background: var(--brand-panel-background);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panel-copy {
+  display: grid;
+  gap: 14px;
+}
+
+.project-switcher-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.project-switcher-label {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.project-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-button {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-strong);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.project-button:hover {
+  transform: translateY(-1px);
+}
+
+.project-button.is-active {
+  border-color: var(--brand-accent-outline);
+  background: linear-gradient(180deg, var(--brand-accent-soft-strong), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 14px 34px var(--brand-accent-shadow);
+}
+
+.project-button-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.project-button-code {
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.panel-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.panel-topbar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.panel-archive-button {
+  min-height: 44px;
+}
+
+.panel-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-bright);
+  font-family: var(--display-font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.panel-copy h1 {
+  margin: 0;
+  font-size: 2.85rem;
+  line-height: 0.95;
+}
+
+.panel-copy p,
+.panel-card p,
+.upload-help {
+  color: var(--text-muted);
+}
+
+.panel-card {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+
+.panel-card h2,
+.preview-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.01em;
+}
+
+.field,
+.upload-block {
+  display: grid;
+  gap: 10px;
+}
+
+.field-group {
+  display: grid;
+  gap: 8px;
+}
+
+.section-mini-title {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.field span,
+.upload-title {
+  color: var(--text-strong);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(8, 11, 15, 0.78);
+  color: var(--text-strong);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.tour-description-field textarea {
+  min-height: 92px;
+}
+
+.field select {
+  appearance: none;
+}
+
+.field-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.metric-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-choice-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.metric-choice-button:hover {
+  transform: translateY(-1px);
+}
+
+.metric-choice-button.is-active {
+  border-color: var(--brand-accent-outline);
+  background: linear-gradient(180deg, var(--brand-accent-soft-strong), rgba(255, 255, 255, 0.04));
+  color: var(--text-strong);
+  box-shadow: 0 14px 34px var(--brand-accent-shadow);
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus,
+.upload-button:focus-visible,
+.primary-button:focus-visible,
+.ghost-button:focus-visible,
+.language-button:focus-visible,
+.metric-choice-button:focus-visible,
+.auto-background-card:focus-visible {
+  outline: 2px solid var(--brand-accent-outline);
+  outline-offset: 2px;
+}
+
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.language-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.language-button:hover {
+  transform: translateY(-1px);
+}
+
+.language-button.is-active {
+  background: #f5f7fb;
+  color: #0b1016;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field-grid-compact {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr) minmax(0, 1.12fr);
+}
+
+.field-grid-compact .field {
+  grid-template-rows: minmax(2.5rem, auto) auto;
+  align-content: start;
+}
+
+.field-grid-compact .field span {
+  display: flex;
+  align-items: flex-end;
+}
+
+.event-meta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.toggle-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(8, 11, 15, 0.5);
+}
+
+.toggle-field input {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  margin-top: 3px;
+  accent-color: var(--brand-accent);
+}
+
+.toggle-title {
+  grid-column: 2;
+  color: var(--text-strong);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toggle-help {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.toggle-field-wide {
+  width: 100%;
+}
+
+.aircraft-results-list,
+.aircraft-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aircraft-result-card {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-strong);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.aircraft-result-card:hover {
+  transform: translateY(-1px);
+}
+
+.aircraft-result-card.is-active {
+  border-color: var(--brand-accent-outline);
+  background: linear-gradient(180deg, var(--brand-accent-soft-strong), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 14px 34px var(--brand-accent-shadow);
+}
+
+.aircraft-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aircraft-result-source,
+.aircraft-result-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0 0.68rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aircraft-result-source {
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-bright);
+}
+
+.aircraft-result-type {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-soft);
+}
+
+.aircraft-result-registration {
+  color: var(--text-strong);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aircraft-result-name,
+.aircraft-photo-attribution {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.upload-help {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.upload-button,
+.ghost-button,
+.primary-button {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.upload-button:hover,
+.ghost-button:hover,
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.upload-button input {
+  display: none;
+}
+
+.upload-button,
+.primary-button {
+  background: var(--brand-accent-gradient);
+  color: #fff;
+}
+
+.ghost-button {
+  background: transparent;
+  color: var(--text-strong);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ghost-button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.primary-button[disabled] {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.upload-file {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.logo-overlay-control {
+  display: grid;
+  gap: 6px;
+}
+
+.logo-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo-overlay-value {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.logo-overlay-range {
+  width: 100%;
+  accent-color: var(--brand-highlight, #e8001e);
+  cursor: pointer;
+}
+
+.auto-background-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.auto-background-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.auto-background-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.favorite-background-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-background-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.favorite-background-card {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.favorite-background-card.is-active {
+  border-color: var(--brand-accent-outline);
+  background: linear-gradient(180deg, var(--brand-accent-soft-strong), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 14px 34px var(--brand-accent-shadow);
+}
+
+.favorite-background-select {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.favorite-background-remove {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.auto-background-card {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.auto-background-card:hover {
+  transform: translateY(-1px);
+}
+
+.auto-background-card.is-active {
+  border-color: var(--brand-accent-outline);
+  background: linear-gradient(180deg, var(--brand-accent-soft-strong), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 14px 34px var(--brand-accent-shadow);
+}
+
+.auto-background-card-image {
+  display: block;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  background-position: center;
+  background-size: cover;
+}
+
+.auto-background-card-label {
+  color: var(--text-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.panel-actions {
+  align-content: start;
+}
+
+.support-card-community {
+  gap: 24px;
+}
+
+.support-card-section {
+  display: grid;
+  gap: 16px;
+}
+
+.support-card-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.support-card-heading p {
+  margin: 0;
+}
+
+.support-card-subtitle {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.support-card-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.community-teams-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.community-team-list {
+  display: grid;
+  gap: 12px;
+}
+
+.community-team-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.community-team-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.community-team-index {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.community-team-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 1fr) minmax(160px, 0.9fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.community-team-remove {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.error-text {
+  margin: 0;
+  color: #ffb4b7;
+}
+
+.preview-panel {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 28px;
+}
+
+.preview-support-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 20px;
+  align-items: start;
+}
+
+.support-card {
+  min-height: 100%;
+}
+
+.support-card-export {
+  align-content: start;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+}
+
+.preview-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resolution-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--brand-preview-chip-background);
+  color: var(--brand-accent-bright);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.preview-frame {
+  min-height: 0;
+  padding: 20px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: auto;
+}
+
+.banner-preview-viewport {
+  width: 100%;
+}
+
+.banner-preview-stage {
+  position: relative;
+  margin: 0 auto;
+}
+
+.banner-preview-scale {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+}
+
+.banner-preview {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  container-type: inline-size;
+  overflow: hidden;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 76% 14%, rgba(255, 212, 152, 0.2), transparent 18%),
+    linear-gradient(180deg, #c0cad7 0%, #778da6 35%, #38495d 60%, #121314 100%);
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.26);
+}
+
+.banner-preview.is-tour {
+  background:
+    radial-gradient(circle at 74% 18%, rgba(100, 182, 255, 0.2), transparent 24%),
+    radial-gradient(circle at 84% 64%, rgba(255, 255, 255, 0.08), transparent 20%),
+    linear-gradient(180deg, #152332 0%, #0f1824 46%, #0a1018 100%);
+}
+
+.app-shell.brand-rag .banner-preview {
+  background:
+    radial-gradient(circle at 74% 14%, rgba(191, 216, 69, 0.18), transparent 20%),
+    radial-gradient(circle at 88% 18%, rgba(67, 187, 209, 0.16), transparent 22%),
+    linear-gradient(180deg, #c0cad7 0%, #778da6 35%, #38495d 60%, #121314 100%);
+}
+
+.app-shell.brand-rag .banner-preview.is-tour {
+  background:
+    radial-gradient(circle at 74% 18%, rgba(67, 187, 209, 0.24), transparent 25%),
+    radial-gradient(circle at 84% 64%, rgba(191, 216, 69, 0.09), transparent 20%),
+    linear-gradient(180deg, #142232 0%, #101a27 46%, #0a1018 100%);
+}
+
+.banner-preview.is-tour::before {
+  background:
+    radial-gradient(circle at 18% 26%, rgba(7, 10, 14, 0.52), transparent 34%),
+    linear-gradient(90deg, rgba(7, 10, 14, 0.92) 0%, rgba(7, 10, 14, 0.78) 23%, rgba(7, 10, 14, 0.38) 49%, rgba(7, 10, 14, 0.14) 72%, rgba(7, 10, 14, 0.04) 100%);
+}
+
+.banner-preview.is-community-event {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.08), transparent 24%),
+    radial-gradient(circle at 76% 72%, rgba(255, 255, 255, 0.05), transparent 24%),
+    linear-gradient(180deg, #1c1f26 0%, #11161f 52%, #0a1018 100%);
+}
+
+.app-shell.brand-rag .banner-preview.is-community-event {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(67, 187, 209, 0.12), transparent 24%),
+    radial-gradient(circle at 76% 72%, rgba(191, 216, 69, 0.06), transparent 24%),
+    linear-gradient(180deg, #1a1f27 0%, #10161f 52%, #0a1018 100%);
+}
+
+.banner-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(18, 19, 20, 0.7) 0%, rgba(18, 19, 20, 0.46) 30%, rgba(18, 19, 20, 0.14) 72%, rgba(18, 19, 20, 0.03) 100%);
+}
+
+.banner-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 20%);
+}
+
+.banner-preview.has-photo .banner-minimal-fallback {
+  opacity: 0;
+}
+
+.banner-aircraft-photo-layer {
+  position: absolute;
+  inset: 0 0 0 48%;
+  z-index: 0;
+  background-position: center right;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.92;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.42) 18%, #000 40%, #000 100%);
+}
+
+.banner-minimal-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 76% 14%, rgba(255, 224, 186, 0.16), rgba(255, 224, 186, 0) 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 24%),
+    linear-gradient(180deg, rgba(16, 18, 21, 0.02), rgba(16, 18, 21, 0.22));
+  transition: opacity 0.2s ease;
+}
+
+.banner-layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 4.6% 4.7% 4.2%;
+}
+
+.banner-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 0.8em 1.1em;
+  border-radius: 999px;
+  background: var(--brand-accent-gradient);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: clamp(0.88rem, 1.05cqw, 1.36rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 30px var(--brand-accent-shadow);
+}
+
+.banner-copy {
+  display: grid;
+  align-content: start;
+  gap: 2.8%;
+  width: min(48%, 760px);
+}
+
+.banner-copy.is-tour {
+  gap: 1.5rem;
+  width: min(30%, 472px);
+}
+
+.banner-copy.is-community-event {
+  gap: 1.5rem;
+  width: min(56%, 920px);
+}
+
+.banner-title {
+  display: grid;
+  gap: 0;
+  font-family: var(--display-font);
+  font-size: clamp(3.7rem, 6.9cqw, 7.8rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  text-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+}
+
+.banner-title span {
+  display: block;
+}
+
+.banner-tour-intro,
+.banner-challenge-intro {
+  margin: 0;
+  max-width: min(92%, 760px);
+  color: #eef2f6;
+  font-size: clamp(1.04rem, 1.14cqw, 1.34rem);
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.banner-airport-chip {
+  display: inline-grid;
+  width: fit-content;
+  max-width: min(100%, 680px);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.52rem 0.56rem 0.52rem 0.7rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(14, 17, 22, 0.72), rgba(14, 17, 22, 0.3));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.banner-airport-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.banner-airport-flag .fi {
+  display: block;
+  overflow: hidden;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font-size: clamp(1.14rem, 1.2cqw, 1.4rem);
+}
+
+.banner-airport-flag-fallback {
+  color: #eef2f6;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.banner-airport-name {
+  min-width: 0;
+  color: #eef2f6;
+  font-size: clamp(0.94rem, 1cqw, 1.24rem);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.banner-tour-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.banner-tour-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.4rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 17, 22, 0.48);
+  color: #eef2f6;
+  font-size: clamp(0.84rem, 0.92cqw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.banner-aircraft-assignment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.banner-aircraft-name,
+.banner-aircraft-registration {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: rgba(14, 17, 22, 0.54);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #eef2f6;
+  font-size: clamp(0.82rem, 0.88cqw, 0.98rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.banner-aircraft-registration {
+  background: var(--brand-chip-gradient);
+  color: #fff;
+  border-color: transparent;
+}
+
+.banner-tour-map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1.8% 1.9% 2.2% 1.4%;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.42) 10%, #000 24%, #000 100%);
+}
+
+.banner-tour-map::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 72% 34%, rgba(84, 143, 205, 0.14), rgba(84, 143, 205, 0) 32%),
+    radial-gradient(circle at 86% 58%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+}
+
+.banner-tour-map-svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.banner-tour-map-graticule {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.11);
+  stroke-width: 1.1;
+  stroke-dasharray: 6 10;
+  opacity: 0.5;
+}
+
+.banner-tour-map-land {
+  fill: rgba(255, 255, 255, 0.075);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.35;
+  opacity: 0.96;
+}
+
+.banner-tour-map-route {
+  fill: none;
+  stroke: url(#tour-route-gradient);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.22));
+}
+
+.banner-tour-map-node-ring {
+  fill: rgba(11, 16, 24, 0.76);
+  stroke: rgba(255, 255, 255, 0.88);
+  stroke-width: 1.6;
+}
+
+.banner-tour-map-node-core {
+  fill: var(--brand-highlight);
+}
+
+.banner-tour-map-node-core.is-endpoint {
+  fill: #ffffff;
+}
+
+.banner-tour-map-label {
+  fill: #eef2f6;
+  font-family: var(--body-font);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  paint-order: stroke fill;
+  stroke: rgba(8, 12, 18, 0.9);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+
+.banner-airport-icao {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.55rem;
+  padding: 0 0.92rem;
+  border-radius: 14px;
+  background: var(--brand-chip-gradient);
+  color: #fff;
+  font-size: clamp(0.84rem, 0.9cqw, 1.04rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 24px var(--brand-chip-shadow);
+}
+
+.banner-footer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.banner-reward-block {
+  display: grid;
+  gap: 0.45rem;
+  width: min(46%, 720px);
+}
+
+.banner-reward-block.is-tour {
+  gap: 0.8rem;
+  width: min(56%, 900px);
+}
+
+.banner-reward-block.is-community-event {
+  gap: 0.9rem;
+  width: min(62%, 1040px);
+}
+
+.banner-reward-block.is-community-goal {
+  width: min(48%, 760px);
+}
+
+.banner-reward-label {
+  color: #dce2e7;
+  font-size: clamp(0.82rem, 0.84cqw, 1.02rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.banner-reward-value {
+  font-family: var(--display-font);
+  font-size: clamp(2rem, 3.05cqw, 3.45rem);
+  font-weight: 700;
+  line-height: 0.94;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  text-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.banner-reward-value em {
+  color: var(--brand-highlight);
+  font-style: normal;
+}
+
+.banner-legs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.62rem;
+}
+
+.banner-leg-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.45rem;
+  max-width: 100%;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(14, 17, 22, 0.74), rgba(14, 17, 22, 0.42));
+  color: #eef2f6;
+  font-size: clamp(0.9rem, 0.96cqw, 1.08rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.banner-leg-flag {
+  display: inline-block;
+  width: clamp(0.9em, 1cqw, 1.1em);
+  height: clamp(0.9em, 1cqw, 1.1em);
+  margin-right: 0.3em;
+  vertical-align: middle;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.banner-legs-empty {
+  color: #eef2f6;
+  font-size: clamp(1rem, 1.14cqw, 1.28rem);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.banner-goal-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.15rem 1.25rem 1.2rem;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(14, 17, 22, 0.82), rgba(14, 17, 22, 0.58));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.banner-goal-type {
+  color: var(--text-soft);
+  font-size: clamp(0.84rem, 0.92cqw, 1rem);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.banner-goal-target {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.banner-goal-target strong {
+  color: var(--brand-highlight);
+  font-family: var(--display-font);
+  font-size: clamp(2.3rem, 3.25cqw, 3.8rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+
+.banner-goal-target span {
+  color: #eef2f6;
+  font-size: clamp(0.96rem, 1.02cqw, 1.12rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.banner-goal-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: clamp(0.92rem, 0.98cqw, 1.08rem);
+  line-height: 1.4;
+}
+
+.banner-meta-stack {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.banner-meta-card {
+  display: grid;
+  gap: 0.2rem;
+  width: fit-content;
+  min-width: 15rem;
+  padding: 0.78rem 0.95rem 0.82rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(14, 17, 22, 0.82), rgba(14, 17, 22, 0.58));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.banner-meta-card.is-registration {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+}
+
+.banner-meta-card-label {
+  color: var(--text-soft);
+  font-size: clamp(0.72rem, 0.78cqw, 0.86rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.banner-meta-card-value {
+  color: #f4f6fb;
+  font-size: clamp(1rem, 1.16cqw, 1.34rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.banner-meta-card:not(.is-registration) .banner-meta-card-value {
+  color: var(--brand-highlight);
+}
+
+.banner-registration-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 2.3rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f6f7fb;
+  font-size: clamp(0.78rem, 0.84cqw, 0.96rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+.app-footer {
+  display: flex;
+  justify-content: flex-start;
+  padding: 8px 4px 0;
+}
+
+.app-footer-link {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.app-footer-link:hover {
+  color: var(--text-strong);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(7, 10, 14, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: min(82vh, 980px);
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(12, 15, 20, 0.98), rgba(22, 27, 35, 0.96));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+}
+
+.modal-card-archive {
+  width: min(980px, 100%);
+}
+
+.modal-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-card-header h2 {
+  margin: 0;
+}
+
+.modal-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.archive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.archive-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.archive-card-image {
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  background-position: center;
+  background-size: cover;
+}
+
+.banner-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.banner-team-card {
+  display: grid;
+  gap: 0.7rem;
+  min-height: 10.5rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(14, 17, 22, 0.8), rgba(14, 17, 22, 0.58));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.banner-team-name {
+  color: #eef2f6;
+  font-size: clamp(1.12rem, 1.28cqw, 1.56rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.banner-team-goal {
+  color: var(--text-soft);
+  font-size: clamp(0.78rem, 0.86cqw, 0.98rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.banner-team-target {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-top: auto;
+}
+
+.banner-team-target strong {
+  color: var(--brand-highlight);
+  font-family: var(--display-font);
+  font-size: clamp(1.8rem, 2.8cqw, 3rem);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+}
+
+.banner-team-target span {
+  color: #eef2f6;
+  font-size: clamp(0.92rem, 0.98cqw, 1.1rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.banner-logo-block {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: min(24cqw, 460px);
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.4rem 0.25rem 1.2rem;
+  overflow: visible;
+  isolation: isolate;
+  flex-shrink: 0;
+}
+
+.banner-logo-block::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -0.3rem;
+  width: 100%;
+  height: min(8cqw, 118px);
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(7, 10, 14, 0.82) 0%,
+    rgba(7, 10, 14, 0.6) 42%,
+    rgba(7, 10, 14, 0.2) 72%,
+    rgba(7, 10, 14, 0) 100%
+  );
+  filter: blur(14px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--logo-overlay-opacity, 1);
+}
+
+.built-in-logo {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  max-width: 100%;
+  height: min(4.2cqw, 80px);
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.28));
+}
+
+.built-in-logo-svg {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1180px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .preview-support-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .control-panel,
+  .preview-panel {
+    padding: 20px;
+  }
+
+  .auto-background-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-background-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aircraft-results-list,
+  .aircraft-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-choice-grid,
+  .community-team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .panel-topbar-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .preview-frame {
+    padding: 12px;
+  }
+
+  .banner-copy,
+  .banner-reward-block {
+    width: min(74%, 920px);
+  }
+
+  .banner-reward-block.is-tour {
+    width: min(82%, 920px);
+  }
+
+  .banner-reward-block.is-community-event,
+  .banner-copy.is-community-event,
+  .banner-copy.is-tour {
+    width: min(88%, 920px);
+  }
+
+  .banner-tour-map {
+    padding-left: 0;
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.48) 12%, #000 26%, #000 100%);
+  }
+
+  .banner-tour-map::before {
+    inset: 0;
+  }
+
+  .banner-footer {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .banner-logo-block {
+    min-width: 0;
+  }
+
+  .banner-aircraft-photo-layer {
+    inset: 38% 0 0 0;
+    mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.46) 16%, #000 40%, #000 100%);
+  }
+
+  .banner-airport-chip {
+    max-width: 100%;
+    grid-template-columns: auto 1fr;
+  }
+
+  .banner-airport-icao {
+    grid-column: 2;
+    width: fit-content;
+  }
+}
