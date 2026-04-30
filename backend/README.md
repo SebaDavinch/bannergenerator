@@ -17,6 +17,8 @@ FastAPI backend scaffold for the VA assistant project.
 - File-backed audit log instead of a database.
 - File-backed airport catalogs for `rag` and `vnws`.
 - Airport catalog sync from the real vAMSYS `/airports` endpoint.
+- Aircraft catalog sync from the real vAMSYS `/fleet` and `/fleet/{fleet_id}/aircraft` endpoints.
+- Aircraft photo lookup by registration through vAMSYS catalog images, Planespotters, JetPhotos via JetAPI, and Wikimedia Commons fallback.
 
 ## Environment
 
@@ -36,6 +38,8 @@ Optional but supported:
 - `VAMSYS_RAG_SCOPE`
 - `VAMSYS_CLIENT_ID` and `VAMSYS_CLIENT_SECRET` as legacy fallback for `vnws`
 
+For vAMSYS 5.4 Operations OAuth clients, leave `VAMSYS_*_SCOPE` blank when the client scopes are unrestricted in the vAMSYS UI. If you tick specific Operations API scopes, set the matching space-separated scope string here, for example `ops:read ops:activities:write`.
+
 ## vAMSYS OAuth Flow
 
 According to the official Operations API docs, authentication is machine-to-machine OAuth 2.0 Client Credentials.
@@ -47,7 +51,7 @@ According to the official Operations API docs, authentication is machine-to-mach
   - `grant_type=client_credentials`
   - `client_id=<numeric client id>`
   - `client_secret=<secret>`
-  - `scope=*`
+  - `scope=<space separated scopes>` only when the OAuth client is restricted to explicit scopes
 - Token lifetime: `604800` seconds, or 7 days
 - Rate limit: 100 requests per minute per airline, shared across all OAuth clients for that airline
 - Response headers: inspect `X-RateLimit-*` headers when you need live limit visibility
@@ -75,8 +79,7 @@ curl -X POST "https://vamsys.io/oauth/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" \
   -d "client_id=${VAMSYS_VNWS_CLIENT_ID}" \
-  -d "client_secret=${VAMSYS_VNWS_CLIENT_SECRET}" \
-  -d "scope=*"
+  -d "client_secret=${VAMSYS_VNWS_CLIENT_SECRET}"
 ```
 
 Read the first page of airports:
@@ -98,7 +101,6 @@ token_response = httpx.post(
         "grant_type": "client_credentials",
         "client_id": "YOUR_CLIENT_ID",
         "client_secret": "YOUR_CLIENT_SECRET",
-        "scope": "*",
     },
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     timeout=30.0,
@@ -153,6 +155,9 @@ uvicorn app.main:app --reload
 - `GET /api/airports`
 - `POST /api/airports/import`
 - `POST /api/airports/sync/{source}`
+- `GET /api/aircraft`
+- `POST /api/aircraft/sync/{source}`
+- `GET /api/aircraft/photos/{registration}`
 - `GET /api/drafts`
 - `POST /api/drafts`
 - `GET /api/logs`
@@ -172,6 +177,9 @@ Examples:
 
 - `POST /api/airports/sync/vnws?limit=500`
 - `POST /api/airports/sync/rag?limit=500&base_only=true`
+- `POST /api/aircraft/sync/vnws?limit=5000`
+- `GET /api/aircraft?sources=rag&query=B738`
+- `GET /api/aircraft/photos/PH-BQA?source=vnws&limit=6`
 - `GET /api/vamsys/status?source=vnws`
 - `POST /api/vamsys/activities/rosters?source=rag`
 
@@ -182,4 +190,4 @@ Examples:
 - Audit logs are stored as JSONL in `backend/data/logs/audit.jsonl`.
 - Airport catalogs are stored as JSON files in `backend/data/airports/`.
 - Airport sync uses the authenticated vAMSYS Operations `/airports` endpoint and stores the normalized result locally.
-- Frontend-to-backend integration is not wired yet; this is the backend foundation.
+- Aircraft catalogs are stored as JSON files in `backend/data/aircraft/`.

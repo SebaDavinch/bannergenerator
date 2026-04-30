@@ -43,3 +43,8 @@ class AircraftPhotoRecord(BaseModel):
 class AircraftPhotoSearchResponse(BaseModel):
     registration: str
     items: list[AircraftPhotoRecord]
+
+
+class AircraftPhotoTypeSearchResponse(BaseModel):
+    query: str
+    items: list[AircraftPhotoRecord]

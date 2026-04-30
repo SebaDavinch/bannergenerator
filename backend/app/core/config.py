@@ -60,7 +60,7 @@ def get_settings() -> Settings:
     ]
     default_client_id = os.getenv("VAMSYS_CLIENT_ID", "")
     default_client_secret = os.getenv("VAMSYS_CLIENT_SECRET", "")
-    default_scope = os.getenv("VAMSYS_SCOPE", "*")
+    default_scope = os.getenv("VAMSYS_SCOPE", "")
 
     vamsys_sources = {
         "vnws": VamsysSourceSettings(

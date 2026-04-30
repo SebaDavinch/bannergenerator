@@ -1,1 +1,1000 @@
-[]
+[
+  {
+    "source": "vnws",
+    "airport_id": 406402,
+    "icao": "HEAL",
+    "iata": "DBB",
+    "name": "El Alamein",
+    "city": null,
+    "country_code": "EG",
+    "latitude": 30.924324,
+    "longitude": 28.46161,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406403,
+    "icao": "HESH",
+    "iata": "SSH",
+    "name": "Sharm el-Sheikh",
+    "city": null,
+    "country_code": "EG",
+    "latitude": 27.977272,
+    "longitude": 34.394717,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406401,
+    "icao": "LTAI",
+    "iata": "AYT",
+    "name": "Antalya",
+    "city": null,
+    "country_code": "TR",
+    "latitude": 36.898701,
+    "longitude": 30.800501,
+    "is_hub": true,
+    "tags": [
+      "category:International",
+      "base"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406415,
+    "icao": "LTBS",
+    "iata": "DLM",
+    "name": "Dalaman Airport",
+    "city": null,
+    "country_code": "TR",
+    "latitude": 36.7131,
+    "longitude": 28.7925,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406410,
+    "icao": "LTDB",
+    "iata": "COV",
+    "name": "Mersin Cukurova International Airport",
+    "city": null,
+    "country_code": "TR",
+    "latitude": 36.891478,
+    "longitude": 35.071235,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406416,
+    "icao": "LTFM",
+    "iata": "IST",
+    "name": "Instambul Airport",
+    "city": null,
+    "country_code": "TR",
+    "latitude": 41.274874,
+    "longitude": 28.732136,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380164,
+    "icao": "MUCC",
+    "iata": "CCC",
+    "name": "Cayo Coco Jardines del Rey Airport",
+    "city": null,
+    "country_code": "CU",
+    "latitude": 22.4610004,
+    "longitude": -78.3283997,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 503454,
+    "icao": "MUHG",
+    "iata": "HOG",
+    "name": "Holguin",
+    "city": null,
+    "country_code": "CU",
+    "latitude": 20.785148,
+    "longitude": -76.315526,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380165,
+    "icao": "MUVR",
+    "iata": "VRA",
+    "name": "Varadero Juan Gualberto Gomez Airport",
+    "city": null,
+    "country_code": "CU",
+    "latitude": 23.034401,
+    "longitude": -81.435303,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406413,
+    "icao": "OIIE",
+    "iata": "IKA",
+    "name": "Tehran Imam Khomeini International Airport",
+    "city": null,
+    "country_code": "IR",
+    "latitude": 35.4160995,
+    "longitude": 51.1521988,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406414,
+    "icao": "OITR",
+    "iata": "OMH",
+    "name": "Urmia Airport",
+    "city": null,
+    "country_code": "IR",
+    "latitude": 37.6680984,
+    "longitude": 45.0686989,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380166,
+    "icao": "SVMG",
+    "iata": "PMV",
+    "name": "Porlamar Airport",
+    "city": null,
+    "country_code": "VE",
+    "latitude": 10.912603,
+    "longitude": -63.966599,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380155,
+    "icao": "UCFM",
+    "iata": "BSZ",
+    "name": "Bishkek Manas Airport",
+    "city": null,
+    "country_code": "KG",
+    "latitude": 43.061298,
+    "longitude": 74.4776,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380625,
+    "icao": "UCFO",
+    "iata": "OSS",
+    "name": "Osh Airport",
+    "city": null,
+    "country_code": "KG",
+    "latitude": 40.609001,
+    "longitude": 72.793297,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405373,
+    "icao": "UGSS",
+    "iata": "SUI",
+    "name": "Sukhumi Babushara Airport",
+    "city": null,
+    "country_code": "GE",
+    "latitude": 42.8582,
+    "longitude": 41.128101,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405369,
+    "icao": "UHHH",
+    "iata": "KHV",
+    "name": "Khabarobsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 48.528338,
+    "longitude": 135.188588,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380158,
+    "icao": "UIII",
+    "iata": "IKT",
+    "name": "Irkutsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 52.266707,
+    "longitude": 104.395563,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380160,
+    "icao": "UIUU",
+    "iata": "UUD",
+    "name": "Ulan-Ude Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 51.808614,
+    "longitude": 107.439652,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406404,
+    "icao": "ULAA",
+    "iata": "ARH",
+    "name": "Arkhangelsk",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 64.6003036,
+    "longitude": 40.7167015,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380087,
+    "icao": "ULLI",
+    "iata": "LED",
+    "name": "Pulkovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 59.800301,
+    "longitude": 30.262501,
+    "is_hub": true,
+    "tags": [
+      "category:International",
+      "base",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 404895,
+    "icao": "ULMM",
+    "iata": "MMK",
+    "name": "Murmansk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 68.7817,
+    "longitude": 32.750801,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380089,
+    "icao": "UMKK",
+    "iata": "KGD",
+    "name": "Khrabrovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 54.89161,
+    "longitude": 20.598559,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405319,
+    "icao": "UMMS",
+    "iata": "MSQ",
+    "name": "Minsk-2 Airport",
+    "city": null,
+    "country_code": "BY",
+    "latitude": 53.888071,
+    "longitude": 28.039964,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380120,
+    "icao": "UNBB",
+    "iata": "BAX",
+    "name": "Barnaul Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 53.361285,
+    "longitude": 83.539701,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380121,
+    "icao": "UNBG",
+    "iata": "RGK",
+    "name": "Gorno-Altaysk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 51.969204,
+    "longitude": 85.836539,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380122,
+    "icao": "UNEE",
+    "iata": "KEJ",
+    "name": "Kemerovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.2701,
+    "longitude": 86.107201,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380159,
+    "icao": "UNKL",
+    "iata": "KJA",
+    "name": "Krasnoyarsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.175743,
+    "longitude": 92.485788,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380624,
+    "icao": "UNNT",
+    "iata": "OVB",
+    "name": "Novosibirsk Tolmachevo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.019756,
+    "longitude": 82.618675,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380130,
+    "icao": "UNOO",
+    "iata": "OMS",
+    "name": "Omsk Tsentralny Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 54.963124,
+    "longitude": 73.312418,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380129,
+    "icao": "UNTT",
+    "iata": "TOF",
+    "name": "Tomsk Bogashevo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.380299,
+    "longitude": 85.208298,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380128,
+    "icao": "UNWW",
+    "iata": "NOZ",
+    "name": "Novokuznetsk Spichenkovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 53.811401,
+    "longitude": 86.877197,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 454954,
+    "icao": "URKK",
+    "iata": "KRR",
+    "name": "Krasnodar International Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 45.034465,
+    "longitude": 39.174215,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380095,
+    "icao": "URML",
+    "iata": "MCX",
+    "name": "Makhachkala Uytash Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 42.816799,
+    "longitude": 47.652302,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380094,
+    "icao": "URMM",
+    "iata": "MRV",
+    "name": "Mineralnye Vody Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 44.225101,
+    "longitude": 43.081902,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380093,
+    "icao": "URSS",
+    "iata": "AER",
+    "name": "Sochi Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 43.449902,
+    "longitude": 39.9566,
+    "is_hub": true,
+    "tags": [
+      "category:International",
+      "base",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405376,
+    "icao": "URWA",
+    "iata": "ASF",
+    "name": "Astrakhan Narimanovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 46.282843,
+    "longitude": 48.010511,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405318,
+    "icao": "URWW",
+    "iata": "VOG",
+    "name": "Volgograd Gumrak Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 48.78134,
+    "longitude": 44.339194,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380144,
+    "icao": "USCC",
+    "iata": "CEK",
+    "name": "Chelyabinsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.303141,
+    "longitude": 61.504927,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380123,
+    "icao": "USCM",
+    "iata": "MQF",
+    "name": "Magnitogorsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 53.391991,
+    "longitude": 58.755235,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405316,
+    "icao": "USII",
+    "iata": "IJK",
+    "name": "Izhevsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.834524,
+    "longitude": 53.462172,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380347,
+    "icao": "USKK",
+    "iata": "KVX",
+    "name": "Kirov Pobedilovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 58.503883,
+    "longitude": 49.347831,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380345,
+    "icao": "USNN",
+    "iata": "NJC",
+    "name": "Nizhnevartovsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 60.949299,
+    "longitude": 76.483597,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380142,
+    "icao": "USPP",
+    "iata": "PEE",
+    "name": "Perm Bolshoye Savino Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 57.914501,
+    "longitude": 56.021198,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380145,
+    "icao": "USRR",
+    "iata": "SGC",
+    "name": "Surgut Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 61.340501,
+    "longitude": 73.405782,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380146,
+    "icao": "USSS",
+    "iata": "SVX",
+    "name": "Yekaterinburg Koltsovo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.7430992,
+    "longitude": 60.8027,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380133,
+    "icao": "USTR",
+    "iata": "TJM",
+    "name": "Tyumen Roschino Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 57.178984,
+    "longitude": 65.327696,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405313,
+    "icao": "USUU",
+    "iata": "KRO",
+    "name": "Kurgan Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.4753,
+    "longitude": 65.415604,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380156,
+    "icao": "UTDD",
+    "iata": "DYU",
+    "name": "Dushanbe Airport",
+    "city": null,
+    "country_code": "TJ",
+    "latitude": 38.543746,
+    "longitude": 68.822977,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380157,
+    "icao": "UTDL",
+    "iata": "LBD",
+    "name": "Khujand Airport",
+    "city": null,
+    "country_code": "TJ",
+    "latitude": 40.215401,
+    "longitude": 69.694702,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380168,
+    "icao": "UTDT",
+    "iata": "KQT",
+    "name": "Bokhtar Airport",
+    "city": null,
+    "country_code": "TJ",
+    "latitude": 37.866315,
+    "longitude": 68.864475,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380623,
+    "icao": "UUBI",
+    "iata": "IWA",
+    "name": "Ivanovo Yuzhny Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.9393997,
+    "longitude": 40.9407997,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 406406,
+    "icao": "UUBW",
+    "iata": "ZIA",
+    "name": "Moscow Zhukowsky",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.553299,
+    "longitude": 38.150002,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380088,
+    "icao": "UUEE",
+    "iata": "SVO",
+    "name": "Sheremetyevo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.976858,
+    "longitude": 37.41121,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405321,
+    "icao": "UUYY",
+    "iata": "SCW",
+    "name": "Syktyvkar Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 61.6469994,
+    "longitude": 50.8451004,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380091,
+    "icao": "UWGG",
+    "iata": "GOJ",
+    "name": "Nizhny Novgorod Strigino Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.227351,
+    "longitude": 43.785152,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380092,
+    "icao": "UWKD",
+    "iata": "KZN",
+    "name": "Kazan Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.606201,
+    "longitude": 49.278702,
+    "is_hub": true,
+    "tags": [
+      "category:International",
+      "base",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380346,
+    "icao": "UWKE",
+    "iata": "NBC",
+    "name": "Naberezhnye Chelny Begishevo Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 55.564701,
+    "longitude": 52.092499,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380344,
+    "icao": "UWKS",
+    "iata": "CSY",
+    "name": "Cheboksary Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 56.090302,
+    "longitude": 47.347301,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405374,
+    "icao": "UWLL",
+    "iata": "ULV",
+    "name": "Ulyanovsk Baratayevka Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 54.268299,
+    "longitude": 48.2267,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380098,
+    "icao": "UWOO",
+    "iata": "REN",
+    "name": "Orenburg Tsentralny Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 51.792668,
+    "longitude": 55.457229,
+    "is_hub": false,
+    "tags": [
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405314,
+    "icao": "UWOR",
+    "iata": "OSW",
+    "name": "Orsk Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 51.072498,
+    "longitude": 58.5956,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405317,
+    "icao": "UWSG",
+    "iata": "GSV",
+    "name": "Saratov Gagarin Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 51.712778,
+    "longitude": 46.171111,
+    "is_hub": false,
+    "tags": []
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380131,
+    "icao": "UWUU",
+    "iata": "UFA",
+    "name": "Ufa Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 54.5574989,
+    "longitude": 55.8744011,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 380090,
+    "icao": "UWWW",
+    "iata": "KUF",
+    "name": "Samara Kurumoch Airport",
+    "city": null,
+    "country_code": "RU",
+    "latitude": 53.504902,
+    "longitude": 50.164299,
+    "is_hub": false,
+    "tags": [
+      "category:International",
+      "suitable-alternate"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 509843,
+    "icao": "VTBU",
+    "iata": "UTP",
+    "name": "Rayong Pattaya U-Tapao",
+    "city": null,
+    "country_code": "TH",
+    "latitude": 12.6799,
+    "longitude": 101.004997,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405371,
+    "icao": "VTSP",
+    "iata": "HKT",
+    "name": "Phuket Airport",
+    "city": null,
+    "country_code": "TH",
+    "latitude": 8.113257,
+    "longitude": 98.3174,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405315,
+    "icao": "VVCR",
+    "iata": "CXR",
+    "name": "Cam Ranh Airport",
+    "city": null,
+    "country_code": "VN",
+    "latitude": 11.9982,
+    "longitude": 109.219002,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  },
+  {
+    "source": "vnws",
+    "airport_id": 405411,
+    "icao": "ZKPY",
+    "iata": "FNJ",
+    "name": "Pyongyang Sunan Airport",
+    "city": null,
+    "country_code": "KP",
+    "latitude": 39.224098,
+    "longitude": 125.669998,
+    "is_hub": false,
+    "tags": [
+      "category:International"
+    ]
+  }
+]

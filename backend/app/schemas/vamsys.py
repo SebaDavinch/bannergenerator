@@ -123,6 +123,7 @@ class VamsysSourceConnectivityStatus(BaseModel):
     source: str
     configured: bool
     can_authenticate: bool
+    scope: str | None = None
 
 
 class VamsysConnectivityStatus(BaseModel):

@@ -28,7 +28,6 @@ class VamsysAirportSyncService:
         while len(imported_airports) < limit:
             page_size = min(100, limit - len(imported_airports))
             query_params: dict[str, Any] = {
-                "sort": "icao",
                 "page[size]": page_size,
             }
 

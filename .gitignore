@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
@@ -30,5 +31,10 @@ backend/.env
 backend/**/*.pyc
 backend/**/*.pyo
 backend/**/*.pyd
+backend/data/creations/images/*.png
+backend/data/creations/records/*.json
 backend/data/logs/*.jsonl
 backend/data/drafts/*.json
+
+# Release / compiled artifacts
+release/

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 EventType = Literal[
     "focus-airport",
     "event",
+    "vatsim-region",
     "tour",
     "roster",
     "curated-roster",

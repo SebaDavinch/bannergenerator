@@ -40,14 +40,18 @@ class VamsysOperationsService:
 
         for item in sources:
             if not vamsys_client.configured(item):
+                source_settings = self._settings.vamsys_sources[item]
                 source_statuses.append(
                     VamsysSourceConnectivityStatus(
                         source=item,
                         configured=False,
                         can_authenticate=False,
+                        scope=source_settings.scope,
                     )
                 )
                 continue
+
+            source_settings = self._settings.vamsys_sources[item]
 
             try:
                 await vamsys_client.get_access_token(item)
@@ -57,6 +61,7 @@ class VamsysOperationsService:
                         source=item,
                         configured=True,
                         can_authenticate=False,
+                        scope=source_settings.scope,
                     )
                 )
                 continue
@@ -66,6 +71,7 @@ class VamsysOperationsService:
                     source=item,
                     configured=True,
                     can_authenticate=True,
+                    scope=source_settings.scope,
                 )
             )
 

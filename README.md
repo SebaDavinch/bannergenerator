@@ -23,6 +23,7 @@ Frontend + Python backend foundation for a VA assistant for Nordwind Virtual and
 - File-backed airport catalogs for `rag` and `vnws`.
 - vAMSYS OAuth client credentials foundation for both `vnws` and `rag`, plus activity create endpoints for events, focus airports, tours, rosters, community goals, and community challenges.
 - Airport catalog sync from the real vAMSYS `/airports` endpoint into the local file-backed source catalogs.
+- Aircraft catalog sync from the real vAMSYS `/fleet` and `/fleet/{fleet_id}/aircraft` endpoints into source-specific local catalogs.
 
 ## Frontend Scripts
 
@@ -43,6 +44,8 @@ Core backend endpoints:
 - `GET /api/airports`
 - `POST /api/airports/import`
 - `POST /api/airports/sync/{source}`
+- `GET /api/aircraft`
+- `POST /api/aircraft/sync/{source}`
 - `GET /api/drafts`
 - `POST /api/drafts`
 - `GET /api/logs`

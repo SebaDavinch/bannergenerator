@@ -45,15 +45,19 @@ class VamsysClient:
         if cached_token and cached_token.expires_at > datetime.now(timezone.utc) + timedelta(minutes=5):
             return cached_token.access_token
 
+        token_payload = {
+            "grant_type": "client_credentials",
+            "client_id": source_settings.client_id,
+            "client_secret": source_settings.client_secret,
+        }
+
+        if source_settings.scope.strip():
+            token_payload["scope"] = source_settings.scope.strip()
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 self._settings.vamsys_token_url,
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": source_settings.client_id,
-                    "client_secret": source_settings.client_secret,
-                    "scope": source_settings.scope,
-                },
+                data=token_payload,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()

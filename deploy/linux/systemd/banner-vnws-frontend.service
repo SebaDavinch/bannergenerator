@@ -1,0 +1,15 @@
+[Unit]
+Description=Banner VNWS Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/generator
+ExecStart=/usr/bin/python3 /var/www/generator/serve_frontend.py --host 127.0.0.1 --port 8788 --root /var/www/generator/site
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

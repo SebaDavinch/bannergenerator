@@ -29,14 +29,15 @@ class VamsysAircraftSyncService:
             if len(imported_aircraft) >= limit:
                 break
 
-            fleet_id = fleet_entry.get("id")
+            fleet_payload = self._resource_payload(fleet_entry)
+            fleet_id = self._coerce_int(fleet_payload.get("id"))
 
-            if not isinstance(fleet_id, int):
+            if fleet_id is None:
                 continue
 
-            fleet_name = fleet_entry.get("name") if isinstance(fleet_entry.get("name"), str) else None
-            fleet_code = fleet_entry.get("code") if isinstance(fleet_entry.get("code"), str) else None
-            fleet_type = fleet_entry.get("type") if isinstance(fleet_entry.get("type"), str) else None
+            fleet_name = self._first_string(fleet_payload, "name", "title", "aircraft_name", "aircraftName")
+            fleet_code = self._first_string(fleet_payload, "code", "icao", "icao_code", "icaoCode", "type_code", "typeCode")
+            fleet_type = self._first_string(fleet_payload, "type", "aircraft_type", "aircraftType")
 
             next_cursor: str | None = None
 
@@ -71,8 +72,7 @@ class VamsysAircraftSyncService:
                     if len(imported_aircraft) >= limit:
                         break
 
-                meta = response.get("meta")
-                next_cursor = meta.get("next_cursor") if isinstance(meta, dict) else None
+                next_cursor = self._extract_next_cursor(response)
 
                 if not next_cursor:
                     break
@@ -108,8 +108,7 @@ class VamsysAircraftSyncService:
 
             fleet_entries.extend(item for item in response_items if isinstance(item, dict))
 
-            meta = response.get("meta")
-            next_cursor = meta.get("next_cursor") if isinstance(meta, dict) else None
+            next_cursor = self._extract_next_cursor(response)
 
             if not next_cursor:
                 break
@@ -127,46 +126,111 @@ class VamsysAircraftSyncService:
         if not isinstance(item, dict):
             return None
 
-        registration = item.get("registration")
-        name = item.get("name")
+        payload = self._resource_payload(item)
+        relationships = item.get("relationships") if isinstance(item.get("relationships"), dict) else {}
+        registration = self._first_string(payload, "registration", "reg", "tail_number", "tailNumber", "callsign")
 
         if not isinstance(registration, str) or not registration.strip():
             return None
 
-        if not isinstance(name, str) or not name.strip():
-            return None
+        local_fleet_code = self._first_string(payload, "fleet_code", "fleetCode", "code", "icao", "icao_code", "icaoCode", "type_code", "typeCode")
+        local_fleet_type = self._first_string(payload, "fleet_type", "fleetType", "aircraft_type", "aircraftType", "type")
+        local_fleet_name = self._first_string(payload, "fleet_name", "fleetName", "fleet", "model", "model_name", "modelName")
+        normalized_fleet_name = (fleet_name or local_fleet_name or "").strip() or None
+        normalized_fleet_code = (fleet_code or local_fleet_code or "").strip() or None
+        normalized_fleet_type = (fleet_type or local_fleet_type or "").strip() or None
+        name = self._first_string(payload, "name", "title", "aircraft_name", "aircraftName", "model", "model_name", "modelName")
+        normalized_name = (name or normalized_fleet_name or normalized_fleet_code or registration).strip()
 
         tags: list[str] = []
 
-        if fleet_name:
-            tags.append(f"fleet:{fleet_name.strip()}")
+        if normalized_fleet_name:
+            tags.append(f"fleet:{normalized_fleet_name}")
 
-        if fleet_code:
-            tags.append(f"fleet-code:{fleet_code.strip()}")
+        if normalized_fleet_code:
+            tags.append(f"fleet-code:{normalized_fleet_code}")
 
-        if fleet_type:
-            tags.append(f"fleet-type:{fleet_type.strip()}")
+        if normalized_fleet_type:
+            tags.append(f"fleet-type:{normalized_fleet_type}")
 
-        if item.get("hide_in_phoenix"):
+        if payload.get("hide_in_phoenix") or payload.get("hideInPhoenix") or payload.get("hidden"):
             tags.append("hidden")
+
+        aircraft_id = self._coerce_int(payload.get("id"))
+        fleet_id_value = (
+            self._coerce_int(payload.get("fleet_id"))
+            or self._coerce_int(payload.get("fleetId"))
+            or self._extract_relationship_id(relationships.get("fleet"))
+            or self._extract_relationship_id(relationships.get("aircraft_type"))
+        )
 
         return AircraftRecord(
             source=source,
-            aircraft_id=item.get("id") if isinstance(item.get("id"), int) else None,
-            fleet_id=item.get("fleet_id") if isinstance(item.get("fleet_id"), int) else None,
+            aircraft_id=aircraft_id,
+            fleet_id=fleet_id_value,
             registration=registration.strip().upper(),
-            name=name.strip(),
-            fleet_name=fleet_name.strip() if fleet_name else None,
-            fleet_code=fleet_code.strip().upper() if fleet_code else None,
-            fleet_type=fleet_type.strip().lower() if fleet_type else None,
-            image_url=item.get("image_url") if isinstance(item.get("image_url"), str) else None,
-            image_attribution=item.get("image_attribution") if isinstance(item.get("image_attribution"), str) else None,
-            image_linkback=item.get("image_linkback") if isinstance(item.get("image_linkback"), str) else None,
-            passengers=item.get("passengers") if isinstance(item.get("passengers"), int) else None,
-            cargo=item.get("cargo") if isinstance(item.get("cargo"), int) else None,
-            is_hidden=bool(item.get("hide_in_phoenix")),
+            name=normalized_name,
+            fleet_name=normalized_fleet_name,
+            fleet_code=normalized_fleet_code.upper() if normalized_fleet_code else None,
+            fleet_type=normalized_fleet_type.lower() if normalized_fleet_type else None,
+            image_url=self._first_string(payload, "image_url", "imageUrl", "image", "photo_url", "photoUrl"),
+            image_attribution=self._first_string(payload, "image_attribution", "imageAttribution", "photo_attribution", "photoAttribution"),
+            image_linkback=self._first_string(payload, "image_linkback", "imageLinkback", "photo_linkback", "photoLinkback"),
+            passengers=self._coerce_int(payload.get("passengers") or payload.get("pax")),
+            cargo=self._coerce_int(payload.get("cargo") or payload.get("freight")),
+            is_hidden=bool(payload.get("hide_in_phoenix") or payload.get("hideInPhoenix") or payload.get("hidden")),
             tags=tags,
         )
+
+    def _resource_payload(self, item: dict[str, Any]) -> dict[str, Any]:
+        attributes = item.get("attributes") if isinstance(item.get("attributes"), dict) else {}
+        payload = {**attributes, **item}
+        payload.pop("attributes", None)
+        return payload
+
+    def _extract_next_cursor(self, response: dict[str, Any]) -> str | None:
+        meta = response.get("meta")
+
+        if isinstance(meta, dict):
+            for key in ("next_cursor", "nextCursor", "cursor"):
+                candidate = meta.get(key)
+
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+
+        return None
+
+    def _extract_relationship_id(self, relationship: Any) -> int | None:
+        if not isinstance(relationship, dict):
+            return None
+
+        data = relationship.get("data")
+
+        if isinstance(data, dict):
+            return self._coerce_int(data.get("id"))
+
+        return None
+
+    def _first_string(self, payload: dict[str, Any], *keys: str) -> str | None:
+        for key in keys:
+            value = payload.get(key)
+
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        return None
+
+    def _coerce_int(self, value: Any) -> int | None:
+        if isinstance(value, bool):
+            return None
+
+        if isinstance(value, int):
+            return value
+
+        if isinstance(value, str) and value.strip().isdigit():
+            return int(value.strip())
+
+        return None
 
     def _deduplicate_aircraft(self, aircraft: list[AircraftRecord]) -> list[AircraftRecord]:
         deduplicated_aircraft: dict[str, AircraftRecord] = {}
