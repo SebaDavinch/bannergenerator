@@ -71,9 +71,9 @@ export function FlagWaveBand({
         {/* Every strip is clipped to its own column (local frame is shared). */}
         <clipPath id={sliceClipId}>
           <rect
-            x={-sliceWidth / 2 - 0.6}
+            x={-sliceWidth / 2 - 1.6}
             y={-height / 2 - 1}
-            width={sliceWidth + 1.2}
+            width={sliceWidth + 3.2}
             height={height + 2}
           />
         </clipPath>
@@ -106,9 +106,12 @@ export function FlagWaveBand({
         d={`${edgeTop.join(' ')} L ${VB} ${cy + height / 2 + offsets[SLICES]} ${edgeBottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`}
         fill={`url(#${shadeId})`}
       />
-      {/* Metal edges. */}
-      <path d={edgeTop.join(' ')} fill="none" stroke={edgeColor} strokeWidth={4} strokeOpacity={0.9} />
-      <path d={edgeBottom.join(' ')} fill="none" stroke={edgeColor} strokeWidth={4} strokeOpacity={0.9} />
+      {/* Edge accents: a dark seam plus a thin metal highlight so the band
+          separates from the background without reading as a white border. */}
+      <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
+      <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
+      <path d={edgeTop.join(' ')} fill="none" stroke={edgeColor} strokeWidth={1.1} strokeOpacity={0.7} transform="translate(0 -1.6)" />
+      <path d={edgeBottom.join(' ')} fill="none" stroke={edgeColor} strokeWidth={1.1} strokeOpacity={0.7} transform="translate(0 1.6)" />
     </g>
   )
 }
