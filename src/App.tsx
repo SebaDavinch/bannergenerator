@@ -1,10 +1,83 @@
 import { type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Download, Settings, MapPin, Plane, Shield, Palette, Type, HelpCircle, Archive, Users, Globe, Navigation, Route, List, BookMarked, Trophy, Target, Clock, Wifi, Eye, EyeOff, LayoutGrid, Star, Hexagon } from 'lucide-react'
 import { geoGraticule10, geoInterpolate, geoNaturalEarth1, geoPath } from 'd3-geo'
 import { toPng } from 'html-to-image'
 import countries from 'i18n-iso-countries'
 import { feature } from 'topojson-client'
 import './App.css'
 import airportsData from 'airports-data/airports.json'
+import { localAirports } from './data/airports'
+import { Badge3DStudio } from './badge3d/Badge3DStudio'
+import flagIconsCountries from 'flag-icons/country.json'
+
+type FlagCountryEntry = { code: string; name: string; iso: boolean }
+const allFlagCountries: FlagCountryEntry[] = (flagIconsCountries as FlagCountryEntry[])
+  .filter(c => c.iso)
+  .sort((a, b) => a.name.localeCompare(b.name))
+
+// ICAO prefix → ISO 3166-1 alpha-2 country code
+// Two-letter prefixes checked first, then single-letter fallbacks
+const ICAO_PREFIX_MAP: Record<string, string> = {
+  // Africa
+  DA:'dz', DB:'bj', DF:'bf', DG:'gh', DI:'ci', DN:'ng', DR:'ne', DT:'tn', DX:'tg',
+  FA:'za', FB:'bw', FC:'cg', FD:'sz', FE:'cf', FG:'gq', FK:'cm', FL:'zm',
+  FN:'ao', FO:'ga', FP:'st', FQ:'mz', FS:'sc', FT:'td', FV:'zw', FW:'mw',
+  FX:'ls', FY:'na', FZ:'cd',
+  FM:'mg', FI:'mu',
+  GA:'ml', GB:'gm', GC:'es', GF:'sl', GG:'gw', GL:'lr', GM:'ma',
+  GO:'sn', GQ:'mr', GU:'gn', GV:'cv',
+  HA:'et', HB:'bi', HC:'so', HD:'dj', HE:'eg', HH:'er', HK:'ke',
+  HL:'ly', HR:'rw', HS:'sd', HT:'tz', HU:'ug',
+  // Europe
+  EB:'be', ED:'de', EE:'ee', EF:'fi', EG:'gb', EH:'nl', EI:'ie',
+  EK:'dk', EL:'lu', EN:'no', EP:'pl', ES:'se', ET:'de', EV:'lv', EY:'lt',
+  LA:'al', LB:'bg', LC:'cy', LD:'hr', LE:'es', LF:'fr', LG:'gr',
+  LH:'hu', LI:'it', LJ:'si', LK:'cz', LL:'il', LM:'mt', LO:'at',
+  LP:'pt', LQ:'ba', LR:'ro', LS:'ch', LT:'tr', LU:'md', LW:'mk',
+  LX:'gi', LY:'rs', LZ:'sk',
+  // CIS / Russia
+  UA:'kz', UB:'az', UC:'kg', UD:'am', UG:'ge', UK:'ua', UM:'by',
+  // Tajikistan/Uzbekistan/Turkmenistan share UT
+  UT:'uz',
+  // Russia: UE UH UI UL UN UO UR US UU UV UW UY UZ
+  UE:'ru', UH:'ru', UI:'ru', UL:'ru', UN:'ru', UO:'ru',
+  UR:'ru', US:'ru', UU:'ru', UV:'ru', UW:'ru', UY:'ru', UZ:'ru',
+  // Middle East
+  OA:'af', OB:'bh', OE:'sa', OI:'ir', OJ:'jo', OK:'kw',
+  OL:'lb', OM:'ae', OO:'om', OP:'pk', OR:'iq', OS:'sy', OT:'qa', OY:'ye',
+  // Asia
+  VA:'in', VB:'mm', VC:'lk', VD:'kh', VE:'in', VG:'bd', VH:'hk',
+  VI:'in', VL:'la', VM:'mo', VN:'np', VO:'in', VQ:'bt', VR:'mv',
+  VT:'th', VV:'vn', VY:'mm',
+  // Maritime SE Asia
+  WA:'id', WB:'my', WI:'id', WM:'my', WP:'tl', WR:'id', WS:'sg',
+  // East Asia
+  RB:'jp', RC:'tw', RJ:'jp', RK:'kr', RO:'jp', RP:'ph',
+  ZB:'cn', ZG:'cn', ZH:'cn', ZJ:'cn', ZK:'kp', ZL:'cn',
+  ZM:'mn', ZP:'cn', ZS:'cn', ZU:'cn', ZW:'cn', ZY:'cn',
+  // Pacific
+  AG:'sb', AN:'nr', AY:'pg',
+  NF:'fj', NG:'ki', NI:'nu', NS:'ws', NT:'pf', NV:'vu', NW:'nc', NZ:'nz',
+  // Caribbean / C. America
+  MB:'tc', MD:'do', MG:'gt', MH:'hn', MM:'mx', MN:'ni',
+  MP:'pa', MR:'cr', MS:'sv', MT:'ht', MU:'cu', MY:'bs', MZ:'bz',
+  TA:'ag', TB:'bb', TF:'gp', TG:'gd', TI:'vi', TJ:'pr',
+  TK:'kn', TL:'lc', TN:'cw', TT:'tt', TV:'vc', TX:'bm',
+  // S. America
+  SA:'ar', SB:'br', SC:'cl', SD:'br', SE:'ec', SF:'fk', SG:'py',
+  SK:'co', SL:'bo', SM:'sr', SN:'br', SO:'gf', SP:'pe',
+  SS:'br', SU:'uy', SV:'ve', SW:'br', SY:'gy',
+  // Single-letter fallbacks
+  K:'us', C:'ca', Y:'au', P:'us',
+}
+
+function getCountryFromIcao(icao: string): string {
+  if (!icao || icao.length < 2) return ''
+  const two = icao.slice(0, 2).toUpperCase()
+  if (ICAO_PREFIX_MAP[two]) return ICAO_PREFIX_MAP[two]
+  const one = icao.slice(0, 1).toUpperCase()
+  return ICAO_PREFIX_MAP[one] ?? ''
+}
 import worldLandAtlas from 'world-atlas/land-110m.json'
 import defaultBackgroundAsset from './assets/saint-petersburg-default.jpg'
 import tourMapLakesJson from './assets/tour-map-lakes.json'
@@ -22,11 +95,12 @@ import enLocale from 'i18n-iso-countries/langs/en.json'
 countries.registerLocale(enLocale)
 
 type Locale = 'ru' | 'en'
-type AppMode = 'banner' | 'badge'
-type BadgeShape = 'circle' | 'rounded-square' | 'shield'
-type BadgeFrame = 'ring' | 'hex' | 'ticket'
-type BadgeLayerStyle = 'orbital' | 'winged' | 'crest'
+type AppMode = 'banner' | 'badge' | 'badge3d'
+type BadgeLayout = 'classic' | 'pill' | 'flag'
+type BadgeInnerShape = 'none' | 'circle' | 'rounded-square' | 'shield' | 'hexagon'
 type BadgePaletteMode = 'brand' | 'custom'
+type BadgeGradientStyle = 'solid' | 'diagonal' | 'vertical' | 'radial'
+type BadgePhotoBlend = 'luminosity' | 'overlay' | 'multiply' | 'screen'
 type BadgeIcon =
   | 'star'
   | 'aircraft'
@@ -34,12 +108,70 @@ type BadgeIcon =
   | 'airliner'
   | 'prop'
   | 'helicopter'
+  | 'cargo'
+  | 'drone'
+  | 'concorde'
   | 'route'
   | 'globe'
   | 'medal'
   | 'crown'
   | 'vatsim'
   | 'laurel'
+  | 'wings'
+  | 'compass'
+  | 'tower'
+  | 'radar'
+  | 'runway'
+  | 'waypoint'
+  | 'trophy'
+  | 'shield'
+  | 'diamond'
+  | 'ribbon'
+  | 'headset'
+  | 'atc'
+  | 'b737'
+  | 'a320'
+  | 'b747'
+  | 'b777'
+  | 'a380'
+  | 'a350'
+  | 'calendar'
+  | 'fireworks'
+  | 'balloon'
+  | 'banner'
+  | 'megaphone'
+  | 'formation'
+  | 'island'
+  | 'palm'
+  | 'island-plane'
+  | 'cocktail'
+  | 'sunset'
+  | 'wave'
+  | 'sunglasses'
+  | 'surfboard'
+  | 'snowflake'
+  | 'sun'
+  | 'leaf'
+  | 'flower'
+  | 'umbrella'
+  | 'soccer'
+  | 'basketball'
+  | 'tennis'
+  | 'volleyball'
+  | 'checkered-flag'
+  | 'racecar'
+  | 'helmet'
+  | 'steering-wheel'
+  | 'podium'
+  | 'dumbbell'
+  | 'stopwatch'
+  | 'terminal'
+  | 'suitcase'
+  | 'boarding-pass'
+  | 'windsock'
+  | 'fuel'
+  | 'departure'
+  | 'arrival'
 
 const brandSourceMap = {
   nordwind: 'vnws',
@@ -55,6 +187,7 @@ type EventType =
   | 'curated-roster'
   | 'community-challenge'
   | 'community-goal'
+  | 'slotted'
 
 type RouteEventType = 'tour' | 'roster' | 'curated-roster'
 
@@ -74,6 +207,7 @@ type BonusField =
   | 'curatedRosterBonusPoints'
   | 'challengeBonusPoints'
   | 'communityGoalBonusPoints'
+  | 'slottedBonusPoints'
 
 type RegistrationField =
   | 'focusRegistrationRequired'
@@ -83,32 +217,33 @@ type RegistrationField =
   | 'curatedRosterRegistrationRequired'
   | 'challengeRegistrationRequired'
   | 'communityGoalRegistrationRequired'
+  | 'slottedRegistrationRequired'
 
-type AircraftEnabledField = 'rosterAircraftEnabled' | 'curatedRosterAircraftEnabled'
+type AircraftEnabledField = 'rosterAircraftEnabled' | 'curatedRosterAircraftEnabled' | 'slottedAircraftEnabled'
 
-type AircraftSearchField = 'rosterAircraftSearch' | 'curatedRosterAircraftSearch'
+type AircraftSearchField = 'rosterAircraftSearch' | 'curatedRosterAircraftSearch' | 'slottedAircraftSearch'
 
-type AircraftSourceField = 'rosterAircraftSource' | 'curatedRosterAircraftSource'
+type AircraftSourceField = 'rosterAircraftSource' | 'curatedRosterAircraftSource' | 'slottedAircraftSource'
 
-type AircraftIdField = 'rosterAircraftId' | 'curatedRosterAircraftId'
+type AircraftIdField = 'rosterAircraftId' | 'curatedRosterAircraftId' | 'slottedAircraftId'
 
-type AircraftNameField = 'rosterAircraftName' | 'curatedRosterAircraftName'
+type AircraftNameField = 'rosterAircraftName' | 'curatedRosterAircraftName' | 'slottedAircraftName'
 
-type AircraftRegistrationField = 'rosterAircraftRegistration' | 'curatedRosterAircraftRegistration'
+type AircraftRegistrationField = 'rosterAircraftRegistration' | 'curatedRosterAircraftRegistration' | 'slottedAircraftRegistration'
 
-type AircraftPhotoUrlField = 'rosterAircraftPhotoUrl' | 'curatedRosterAircraftPhotoUrl'
+type AircraftPhotoUrlField = 'rosterAircraftPhotoUrl' | 'curatedRosterAircraftPhotoUrl' | 'slottedAircraftPhotoUrl'
 
-type AircraftPhotoAttributionField = 'rosterAircraftPhotoAttribution' | 'curatedRosterAircraftPhotoAttribution'
+type AircraftPhotoAttributionField = 'rosterAircraftPhotoAttribution' | 'curatedRosterAircraftPhotoAttribution' | 'slottedAircraftPhotoAttribution'
 
-type AircraftPhotoLinkbackField = 'rosterAircraftPhotoLinkback' | 'curatedRosterAircraftPhotoLinkback'
+type AircraftPhotoLinkbackField = 'rosterAircraftPhotoLinkback' | 'curatedRosterAircraftPhotoLinkback' | 'slottedAircraftPhotoLinkback'
 
-type AircraftPhotoManualField = 'rosterAircraftPhotoManual' | 'curatedRosterAircraftPhotoManual'
+type AircraftPhotoManualField = 'rosterAircraftPhotoManual' | 'curatedRosterAircraftPhotoManual' | 'slottedAircraftPhotoManual'
 
-type AircraftPhotoOffsetXField = 'rosterAircraftPhotoOffsetX' | 'curatedRosterAircraftPhotoOffsetX'
+type AircraftPhotoOffsetXField = 'rosterAircraftPhotoOffsetX' | 'curatedRosterAircraftPhotoOffsetX' | 'slottedAircraftPhotoOffsetX'
 
-type AircraftPhotoOffsetYField = 'rosterAircraftPhotoOffsetY' | 'curatedRosterAircraftPhotoOffsetY'
+type AircraftPhotoOffsetYField = 'rosterAircraftPhotoOffsetY' | 'curatedRosterAircraftPhotoOffsetY' | 'slottedAircraftPhotoOffsetY'
 
-type AircraftPhotoZoomField = 'rosterAircraftPhotoZoom' | 'curatedRosterAircraftPhotoZoom'
+type AircraftPhotoZoomField = 'rosterAircraftPhotoZoom' | 'curatedRosterAircraftPhotoZoom' | 'slottedAircraftPhotoZoom'
 
 type RouteAircraftVisualMode = 'map' | 'aircraft'
 type MapThemeMode = 'classic' | 'steel' | 'aurora'
@@ -200,20 +335,93 @@ type BannerFormState = {
   communityGoalTargetAmount: string
   communityGoalBonusPoints: string
   communityGoalRegistrationRequired: boolean
+  slottedTitle: string
+  slottedBonusPoints: string
+  slottedRegistrationRequired: boolean
+  slottedVisualMode: RouteAircraftVisualMode
+  slottedAircraftEnabled: boolean
+  slottedAircraftSearch: string
+  slottedAircraftSource: string
+  slottedAircraftId: string
+  slottedAircraftName: string
+  slottedAircraftRegistration: string
+  slottedAircraftPhotoUrl: string
+  slottedAircraftPhotoAttribution: string
+  slottedAircraftPhotoLinkback: string
+  slottedAircraftPhotoManual: boolean
+  slottedAircraftPhotoOffsetX: string
+  slottedAircraftPhotoOffsetY: string
+  slottedAircraftPhotoZoom: string
+  complexEventPartners: string
+  slottedNetwork: string
+  slottedWaves: string
 }
 
 type BadgeFormState = {
   title: string
   subtitle: string
   topLabel: string
-  shape: BadgeShape
-  frame: BadgeFrame
-  layerStyle: BadgeLayerStyle
+  layout: BadgeLayout
+  innerShape: BadgeInnerShape
+  innerShapeSize: number
+  innerShapeColor: string
+  innerShapeFillOpacity: number
+  innerShapeRingOpacity: number
+  innerShapeGlow: boolean
   paletteMode: BadgePaletteMode
   icon: BadgeIcon
+  customIcon: string
   backgroundColor: string
   accentColor: string
   textColor: string
+  pillColor: string
+  pillTextColor: string
+  iconBg: boolean
+  iconBgRadius: number
+  iconBgOpacity: number
+  iconSize: number
+  iconColor: string
+  iconOpacity: number
+  fontFamily: string
+  topLabelFont: string
+  topLabelSize: number
+  topLabelColor: string
+  topLabelShiftX: number
+  topLabelShiftY: number
+  titleFont: string
+  titleSize: number
+  titleColor: string
+  titleShiftX: number
+  titleShiftY: number
+  subtitleFont: string
+  subtitleSize: number
+  subtitleColor: string
+  subtitleShiftX: number
+  subtitleShiftY: number
+  bgGradientStyle: BadgeGradientStyle
+  bgColor2: string
+  bgGradientAngle: number
+  badgePhoto: string
+  photoOpacity: number
+  photoBlend: BadgePhotoBlend
+  flagCountry: string
+  flagData: string
+  flagOpacity: number
+  flagBlend: BadgePhotoBlend
+  flagEffect: 'flat' | 'perspective' | 'wave'
+  flagVariant: 'fullbg' | 'corner' | 'ribbon'
+  flagGradOpacity: number
+  flagGradHeight: number
+  noiseOpacity: number
+  showTopLabel: boolean
+  showTitle: boolean
+  showSubtitle: boolean
+  showIcon: boolean
+  showHub: boolean
+  hubIcao: string
+  hubCountry: string
+  hubPosition: 'bottom-left' | 'bottom-center' | 'bottom-right'
+  hubStyle: 'chip' | 'plain'
 }
 
 type CommunityTeam = {
@@ -244,6 +452,7 @@ type InterfaceCopy = {
   curatedRosterEventName: string
   communityChallengeEventName: string
   communityGoalEventName: string
+  slottedEventName: string
   interfaceLanguageLabel: string
   bannerSettingsTitle: string
   cityLabel: string
@@ -706,6 +915,26 @@ function createDefaultFormState(locale: Locale): BannerFormState {
     communityGoalTargetAmount: '1200',
     communityGoalBonusPoints: '350',
     communityGoalRegistrationRequired: false,
+    slottedTitle: '',
+    slottedBonusPoints: '350',
+    slottedRegistrationRequired: false,
+    slottedVisualMode: 'map' as RouteAircraftVisualMode,
+    slottedAircraftEnabled: false,
+    slottedAircraftSearch: '',
+    slottedAircraftSource: '',
+    slottedAircraftId: '',
+    slottedAircraftName: '',
+    slottedAircraftRegistration: '',
+    slottedAircraftPhotoUrl: '',
+    slottedAircraftPhotoAttribution: '',
+    slottedAircraftPhotoLinkback: '',
+    slottedAircraftPhotoManual: false,
+    slottedAircraftPhotoOffsetX: '0',
+    slottedAircraftPhotoOffsetY: '0',
+    slottedAircraftPhotoZoom: '100',
+    complexEventPartners: '',
+    slottedNetwork: 'VATSIM',
+    slottedWaves: '[]',
   }
 }
 
@@ -714,14 +943,81 @@ function createDefaultBadgeFormState(locale: Locale): BadgeFormState {
     title: locale === 'ru' ? 'Участник' : 'Participant',
     subtitle: locale === 'ru' ? 'Spring Event 2026' : 'Spring Event 2026',
     topLabel: locale === 'ru' ? 'EVENT' : 'EVENT',
-    shape: 'circle',
-    frame: 'ring',
-    layerStyle: 'orbital',
+    layout: 'classic',
+    innerShape: 'none',
+    innerShapeSize: 118,
+    innerShapeColor: '',
+    innerShapeFillOpacity: 0.14,
+    innerShapeRingOpacity: 0.45,
+    innerShapeGlow: true,
     paletteMode: 'brand',
     icon: 'medal',
+    customIcon: '',
     backgroundColor: '#11161d',
     accentColor: '#d6181e',
     textColor: '#f4f7fb',
+    pillColor: '',
+    pillTextColor: '',
+    iconBg: true,
+    iconBgRadius: 22,
+    iconBgOpacity: 0.22,
+    iconSize: 66,
+    iconColor: '',
+    iconOpacity: 1,
+    fontFamily: 'inherit',
+    topLabelFont: 'inherit',
+    topLabelSize: 0,
+    topLabelColor: '',
+    topLabelShiftX: 0,
+    topLabelShiftY: 0,
+    titleFont: 'inherit',
+    titleSize: 0,
+    titleColor: '',
+    titleShiftX: 0,
+    titleShiftY: 0,
+    subtitleFont: 'inherit',
+    subtitleSize: 0,
+    subtitleColor: '',
+    subtitleShiftX: 0,
+    subtitleShiftY: 0,
+    bgGradientStyle: 'diagonal',
+    bgColor2: '#1e0505',
+    bgGradientAngle: 135,
+    badgePhoto: '',
+    photoOpacity: 0.28,
+    photoBlend: 'luminosity',
+    flagCountry: '',
+    flagData: '',
+    flagOpacity: 0.35,
+    flagBlend: 'luminosity',
+    flagEffect: 'perspective',
+    flagVariant: 'fullbg',
+    flagGradOpacity: 1,
+    flagGradHeight: 82,
+    noiseOpacity: 0,
+    showTopLabel: true,
+    showTitle: true,
+    showSubtitle: true,
+    showIcon: true,
+    showHub: false,
+    hubIcao: '',
+    hubCountry: '',
+    hubPosition: 'bottom-center',
+    hubStyle: 'chip',
+  }
+}
+
+function computeBadgeBaseBackground(
+  style: BadgeGradientStyle,
+  color1: string,
+  color2: string,
+  angle: number,
+): string {
+  switch (style) {
+    case 'solid': return color1
+    case 'diagonal': return `linear-gradient(${angle}deg, ${color2}, ${color1})`
+    case 'vertical': return `linear-gradient(180deg, ${color2}, ${color1})`
+    case 'radial': return `radial-gradient(ellipse at 30% 25%, ${color1} 0%, ${color2} 70%)`
   }
 }
 
@@ -761,6 +1057,36 @@ const defaultCommunityTeams: CommunityTeam[] = [
 
 function cloneDefaultCommunityTeams() {
   return defaultCommunityTeams.map((team) => ({ ...team }))
+}
+
+type SlottedWave = {
+  id: string
+  label: string
+  openTime: string
+  condition: string
+}
+
+const slottedNetworkOptions = ['VATSIM', 'IVAO', 'POSCON', 'PilotEdge'] as const
+
+function parseSlottedWaves(json: string): SlottedWave[] {
+  try {
+    const parsed = JSON.parse(json)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((w): w is SlottedWave =>
+      w && typeof w.id === 'string' && typeof w.label === 'string' &&
+      typeof w.openTime === 'string' && typeof w.condition === 'string'
+    )
+  } catch {
+    return []
+  }
+}
+
+function serializeSlottedWaves(waves: SlottedWave[]): string {
+  return JSON.stringify(waves)
+}
+
+function createSlottedWave(index: number): SlottedWave {
+  return { id: `wave-${Date.now()}-${index}`, label: `Wave ${index + 1}`, openTime: '', condition: '' }
 }
 
 const defaultVatsimRegionDivisionSelection = 'vatrus,vateud'
@@ -1220,7 +1546,7 @@ function loadStoredBannerSettings(locale: Locale): {
     }
 
     return {
-      appMode: parsedValue?.appMode === 'badge' ? 'badge' : 'banner',
+      appMode: parsedValue?.appMode === 'badge' ? 'badge' : parsedValue?.appMode === 'badge3d' ? 'badge3d' : 'banner',
       form: normalizedForm,
       badgeForm: normalizedBadgeForm,
       communityTeams: sanitizeStoredCommunityTeams(parsedValue?.communityTeams),
@@ -1277,7 +1603,7 @@ const interfaceCopy: Record<Locale, InterfaceCopy> = {
     backgroundRemoveFavoriteButton: 'Убрать',
     backgroundFavoriteLoadError: 'Не удалось загрузить сохранённый фон. Попробуйте ещё раз.',
     eventTypeLabel: 'Тип ивента',
-    complexEventEventName: 'Совместный ивент',
+    complexEventEventName: 'Collab Event',
     vatsimRegionEventName: 'VATSIM Regions',
     focusAirportEventName: 'Focus Airport',
     tourEventName: 'Тур',
@@ -1285,9 +1611,10 @@ const interfaceCopy: Record<Locale, InterfaceCopy> = {
     curatedRosterEventName: 'Curated Roster',
     communityChallengeEventName: 'Community Challenge',
     communityGoalEventName: 'Community Goal',
+    slottedEventName: 'Slotted Event',
     interfaceLanguageLabel: 'Язык интерфейса',
     bannerSettingsTitle: 'Параметры баннера',
-    cityLabel: 'Город',
+    cityLabel: 'Город / аэропорт',
     countryCodeLabel: 'Код страны',
     icaoLabel: 'ICAO',
     bonusPointsLabel: 'Бонусные баллы',
@@ -1486,7 +1813,7 @@ const interfaceCopy: Record<Locale, InterfaceCopy> = {
     backgroundRemoveFavoriteButton: 'Remove',
     backgroundFavoriteLoadError: 'Failed to load the saved background. Try again.',
     eventTypeLabel: 'Event Type',
-    complexEventEventName: 'Joint Event',
+    complexEventEventName: 'Collab Event',
     vatsimRegionEventName: 'VATSIM Regions',
     focusAirportEventName: 'Focus Airport',
     tourEventName: 'Tour',
@@ -1494,9 +1821,10 @@ const interfaceCopy: Record<Locale, InterfaceCopy> = {
     curatedRosterEventName: 'Curated Roster',
     communityChallengeEventName: 'Community Challenge',
     communityGoalEventName: 'Community Goal',
+    slottedEventName: 'Slotted Event',
     interfaceLanguageLabel: 'Interface language',
     bannerSettingsTitle: 'Banner Settings',
-    cityLabel: 'City',
+    cityLabel: 'City / Airport',
     countryCodeLabel: 'Country Code',
     icaoLabel: 'ICAO',
     bonusPointsLabel: 'Bonus Points',
@@ -1735,6 +2063,7 @@ const eventOrder: EventType[] = [
   'curated-roster',
   'community-challenge',
   'community-goal',
+  'slotted',
 ]
 
 const eventDefinitions: Record<EventType, EventDefinition> = {
@@ -1777,6 +2106,11 @@ const eventDefinitions: Record<EventType, EventDefinition> = {
     key: 'community-goal',
     shortName: 'CG',
     exportSlug: 'community-goal',
+  },
+  slotted: {
+    key: 'slotted',
+    shortName: 'SLT',
+    exportSlug: 'slotted',
   },
 }
 
@@ -2118,10 +2452,22 @@ function buildVatsimRegionSelectionState(
     nextValues.divisionIds ?? parseSerializedSelection(current.vatsimRegionDivisionSelection),
   )
   const availablePresetIds = getPresetDefinitionsForDivisions(normalizedDivisionIds).map((preset) => preset.id)
-  const normalizedPresetIds = normalizeVatsimRegionPresetIds(
-    nextValues.presetIds ?? parseSerializedSelection(current.vatsimRegionPresetSelection),
-    availablePresetIds,
-  )
+
+  // When divisions change, auto-select presets for newly added divisions
+  let basePresetIds: string[]
+  if (nextValues.presetIds !== undefined) {
+    basePresetIds = nextValues.presetIds
+  } else {
+    const prevDivisionIdSet = new Set(parseSerializedSelection(current.vatsimRegionDivisionSelection))
+    const addedDivisionIds = normalizedDivisionIds.filter((id) => !prevDivisionIdSet.has(id))
+    const autoPresetIds = addedDivisionIds.length > 0
+      ? getPresetDefinitionsForDivisions(addedDivisionIds).map((preset) => preset.id)
+      : []
+    const existingPresetIds = parseSerializedSelection(current.vatsimRegionPresetSelection)
+    basePresetIds = [...new Set([...existingPresetIds, ...autoPresetIds])]
+  }
+
+  const normalizedPresetIds = normalizeVatsimRegionPresetIds(basePresetIds, availablePresetIds)
   const availableFirIds = getPresetFirIds(normalizedPresetIds)
   const normalizedFirIds = normalizeVatsimRegionFirIds(
     nextValues.firIds ?? parseSerializedSelection(current.vatsimRegionFirSelection),
@@ -2380,7 +2726,22 @@ const ICAO_PREFIX_TO_COUNTRY: Record<string, string> = {
 
 const airportCoordinateLookup = createAirportCoordinateLookup(airportsData as AirportCoordinateRecord[])
 const airportCountryCodeLookup = createAirportCountryCodeLookup(airportsData as AirportCoordinateRecord[])
-const airportCatalog = createAirportCatalog(airportsData as AirportCoordinateRecord[])
+
+// Build catalog: local curated entries take priority, npm package fills the rest
+const localIcaoSet = new Set(localAirports.map((a) => a.icao))
+const localAirportCatalog: AirportCatalogOption[] = localAirports.map((a) => ({
+  icao: a.icao,
+  iata: a.iata,
+  name: a.name,
+  city: a.city,
+  countryCode: getIcaoCountryCode(a.icao) ?? a.country.slice(0, 2).toUpperCase(),
+  type: 'airport',
+}))
+const npmAirportCatalog = createAirportCatalog(airportsData as AirportCoordinateRecord[])
+const airportCatalog: AirportCatalogOption[] = [
+  ...localAirportCatalog,
+  ...npmAirportCatalog.filter((a) => !localIcaoSet.has(a.icao)),
+]
 const airportByIcaoLookup = createAirportByIcaoLookup(airportCatalog)
 
 function NordwindVirtualLogo({ ariaLabel }: { ariaLabel: string }) {
@@ -2507,33 +2868,41 @@ function renderBadgeIcon(icon: BadgeIcon) {
         </svg>
       )
     case 'aircraft':
+      // Tabler Icons filled/plane — MIT license
       return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M21.4 11.2 13 8.7 9.1 2.5 7.2 3l1.3 6.4-4.3-1.2-1.8-2.7-1.4.4L2 10l-1.1 4 1.4.4 1.8-2.7 4.3-1.2L7.2 17l1.9.5 3.9-6.2 8.4-2.5v-1.6Z" fill="currentColor" />
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12.868 2.504l3.712 6.496h3.42a3 3 0 0 1 0 6h-3.42l-3.712 6.496a1 1 0 0 1 -.868 .504h-3a1 1 0 0 1 -.962 -1.275l1.636 -5.725h-2.26l-1.707 1.707a1 1 0 0 1 -.707 .293h-3a1 1 0 0 1 -.894 -1.447l1.776 -3.553l-1.776 -3.553a1 1 0 0 1 .894 -1.447h3a1 1 0 0 1 .707 .293l1.707 1.707h2.26l-1.636 -5.725a1 1 0 0 1 .962 -1.275h3a1 1 0 0 1 .868 .504" />
         </svg>
       )
     case 'jet':
+      // Tabler Icons filled/plane-tilt — MIT license
       return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m21 10.2-7.7-2.4L10.1 3h-1l.8 5.1-3.6-1.1-1.7-2.2-.9.3.8 3.5-2.8.9v1l2.8.9-.8 3.5.9.3 1.7-2.2 3.6-1.1-.8 5.1h1l3.2-4.8L21 13.8v-3.6Z" fill="currentColor" />
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M21.107 2.893a3.047 3.047 0 0 1 .012 4.302l-2.479 2.564l2.309 6.925a1 1 0 0 1 -.235 1.016l-2.5 2.55a1 1 0 0 1 -1.596 -.229l-2.864 -5.36l-1.754 1.753v2.586a1 1 0 0 1 -.293 .707l-2 2a1 1 0 0 1 -1.656 -.39l-1.341 -4.027l-4.025 -1.342a1 1 0 0 1 -.391 -1.656l2 -2a1 1 0 0 1 .706 -.292h2.586l1.757 -1.757l-5.317 -2.863a1 1 0 0 1 -.233 -1.587l2.5 -2.5a1 1 0 0 1 1.023 -.242l6.925 2.309l2.552 -2.467a3.05 3.05 0 0 1 4.314 0" />
         </svg>
       )
     case 'airliner':
+      // Lucide plane — MIT license (already a project dependency)
       return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 13.5h18v-3H3v3Zm2.8-4.2 2.1-2.9h8.2l2.1 2.9H5.8Zm2.5 5.8 1.4 2.1h4.6l1.4-2.1H8.3Z" fill="currentColor" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
         </svg>
       )
     case 'prop':
+      // Tabler Icons outline/propeller — MIT license
       return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 10.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6Zm-.8-8.1c1.5.6 2.6 1.8 3 3.4.5 1.8-.8 3.3-2.2 5m9.1 1.7c-.6 1.5-1.8 2.6-3.4 3-1.8.5-3.3-.8-5-2.2m-.8 8.6c-1.5-.6-2.6-1.8-3-3.4-.5-1.8.8-3.3 2.2-5m-8.6-.8c.6-1.5 1.8-2.6 3.4-3 1.8-.5 3.3.8 5 2.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 13a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+          <path d="M14.167 10.5c.722 -1.538 1.156 -3.043 1.303 -4.514c.22 -1.63 -.762 -2.986 -3.47 -2.986s-3.69 1.357 -3.47 2.986c.147 1.471 .581 2.976 1.303 4.514" />
+          <path d="M13.169 16.751c.97 1.395 2.057 2.523 3.257 3.386c1.3 1 2.967 .833 4.321 -1.512c1.354 -2.345 .67 -3.874 -.85 -4.498c-1.348 -.608 -2.868 -.985 -4.562 -1.128" />
+          <path d="M8.664 13c-1.693 .143 -3.213 .52 -4.56 1.128c-1.522 .623 -2.206 2.153 -.852 4.498s3.02 2.517 4.321 1.512c1.2 -.863 2.287 -1.991 3.258 -3.386" />
         </svg>
       )
     case 'helicopter':
+      // Tabler Icons filled/helicopter — MIT license
       return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M2.5 7.2h19m-10.4 0V4.8m-4.1 8.1h7.8c2.4 0 3.7 1.3 3.7 3v1.4H9.6l-2.1 1.9H5.6l1.6-1.9H4.8c-.8 0-1.4-.6-1.4-1.4v-.5c0-1.4 1.5-2.5 3.6-2.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20 5a1 1 0 0 1 0 2h-6v1c4.642 0 8 2.218 8 6a3 3 0 0 1 -3 3h-3v1h3a1 1 0 0 1 0 2h-8a1 1 0 0 1 0 -2h3v-1h-2c-1.652 0 -3 -1.348 -3 -3v-1.001l-6 .001a1 1 0 0 1 -.894 -.553l-1 -2a1 1 0 0 1 1.788 -.894l.724 1.447l5.382 -.001l.005 -.175a3 3 0 0 1 2.995 -2.824v-1h-7a1 1 0 1 1 0 -2zm-3.999 5.174l-.001 1.826h3.36c-.665 -.906 -1.825 -1.539 -3.359 -1.826" />
         </svg>
       )
     case 'route':
@@ -2557,14 +2926,580 @@ function renderBadgeIcon(icon: BadgeIcon) {
     case 'vatsim':
       return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 6h16l-8 12L4 6Z" fill="currentColor" />
-          <path d="M12 3v18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          {/* Material Symbols local_airport — Apache 2.0 */}
+          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="currentColor" transform="translate(5.16 5.16) scale(0.57)" />
         </svg>
       )
     case 'laurel':
       return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M8.2 18.5C5.5 16.7 4 13.7 4 10.2c0-1.8.4-3.4 1.2-4.8m10.6 13.1c2.7-1.8 4.2-4.8 4.2-8.3 0-1.8-.4-3.4-1.2-4.8M9 8.2c-1.4.8-2.2 2.1-2.2 3.7 0 1.4.7 2.7 2 3.5m6.2-7.2c1.4.8 2.2 2.1 2.2 3.7 0 1.4-.7 2.7-2 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'wings':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12.5c0 0-2.5-1-5.5-1C3.5 11.5 2 13 2 13s1.5 1 4 1c1.5 0 3.5-.5 4.5-1l1.5-.5Zm0 0c0 0 2.5-1 5.5-1 3 0 4.5 1.5 4.5 1.5s-1.5 1-4 1c-1.5 0-3.5-.5-4.5-1L12 12.5Z" fill="currentColor" opacity=".9" />
+          <ellipse cx="12" cy="12" rx="2" ry="2" fill="currentColor" />
+          <path d="M9 9.5 12 7l3 2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )
+    case 'compass':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          <path d="m12 3 .6 1.2M12 3l-.6 1.2M21 12l-1.2.6M21 12l-1.2-.6M12 21l-.6-1.2M12 21l.6-1.2M3 12l1.2-.6M3 12l1.2.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="m9.5 9.5 2 5 1-2 2-1-5-2Z" fill="currentColor" />
+        </svg>
+      )
+    case 'tower':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M10 21V9.5L8 5h8l-2 4.5V21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M8 14h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M10 21h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M6 8h12M5 5.5l2.5 1M19 5.5l-2.5 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      )
+    case 'b737':
+      // Boeing 737 side-profile — square viewBox for proper icon rendering
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          {/* Fuselage */}
+          <path d="M2.5 15.5C2.5 14 4.5 12.8 7.5 12.8H23C26 12.8 29.5 14 29.5 15.5S26 18.2 23 18.2H7.5C4.5 18.2 2.5 17 2.5 15.5z" fill="currentColor" />
+          {/* Nose */}
+          <path d="M29.5 14 32.5 15.5 29.5 17z" fill="currentColor" />
+          {/* Vertical fin */}
+          <path d="M3.5 12.8 3.5 7.5 8 12.8z" fill="currentColor" />
+          {/* Horizontal stabilizer */}
+          <path d="M3 17.5 9.5 17.5 9.5 18.2 3 18.2z" fill="currentColor" opacity="0.85" />
+          {/* Wing */}
+          <path d="M17 17.5 22.5 18.5 9 27.5 6 27.5z" fill="currentColor" />
+          {/* Engine 1 */}
+          <ellipse cx="11" cy="26" rx="3.2" ry="1.2" fill="currentColor" opacity="0.72" />
+        </svg>
+      )
+    case 'a320':
+      // Airbus A320 side-profile with winglet — square viewBox
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          {/* Fuselage — slightly longer nose than 737 */}
+          <path d="M2 15.5C2 14 4 12.5 7.5 12.5H22.5C26 12.5 30 14 30 15.5S26 18.5 22.5 18.5H7.5C4 18.5 2 17 2 15.5z" fill="currentColor" />
+          {/* Long nose */}
+          <path d="M30 13.5 33.5 15.5 30 17.5z" fill="currentColor" />
+          {/* Vertical fin */}
+          <path d="M3 12.5 3 7 7.5 12.5z" fill="currentColor" />
+          {/* Horizontal stabilizer */}
+          <path d="M2.5 17.5 9.5 17.5 9.5 18.5 2.5 18.5z" fill="currentColor" opacity="0.85" />
+          {/* Wing */}
+          <path d="M17 18 23 19 9 28 6 28z" fill="currentColor" />
+          {/* Winglet (upswept tip) */}
+          <path d="M9.5 27.5 8 24.5 10 26.5z" fill="currentColor" opacity="0.8" />
+          {/* Engine */}
+          <ellipse cx="11" cy="26.5" rx="3.2" ry="1.2" fill="currentColor" opacity="0.72" />
+        </svg>
+      )
+    case 'b747':
+      // Boeing 747 side-profile with upper deck hump — square viewBox
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          {/* Fuselage main deck */}
+          <path d="M2.5 16C2.5 14.5 5 13 8 13H23C26 13 29.5 14.5 29.5 16S26 19 23 19H8C5 19 2.5 17.5 2.5 16z" fill="currentColor" />
+          {/* Upper deck hump (iconic 747 feature) */}
+          <path d="M19 13C19 13 18.5 10 17 9c-1-.7-2.5-.8-2.5-.8S15.5 9 16 10c.4.7 1.2 2.2 1.8 3H19z" fill="currentColor" opacity="0.75" />
+          {/* Nose */}
+          <path d="M29.5 14.5 32.5 16 29.5 17.5z" fill="currentColor" />
+          {/* Vertical fin */}
+          <path d="M3.5 13 3.5 7.5 8 13z" fill="currentColor" />
+          {/* Horizontal stabilizer */}
+          <path d="M3 17.5 9 17.5 9 19 3 19z" fill="currentColor" opacity="0.85" />
+          {/* Wing */}
+          <path d="M17.5 18 23 19 9 28 6 28z" fill="currentColor" />
+          {/* Inner engine */}
+          <ellipse cx="11.5" cy="26.5" rx="2.8" ry="1.1" fill="currentColor" opacity="0.72" />
+          {/* Outer engine */}
+          <ellipse cx="8" cy="26.5" rx="2.2" ry="1" fill="currentColor" opacity="0.55" />
+        </svg>
+      )
+    case 'b777':
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M2 15.5C2 14 4.5 12.5 8 12.5H23.5C27 12.5 30.5 14 30.5 15.5S27 18.5 23.5 18.5H8C4.5 18.5 2 17 2 15.5z" fill="currentColor"/>
+          <path d="M30.5 13.8 33.5 15.5 30.5 17.2z" fill="currentColor"/>
+          <path d="M3 12.5 3 7 8 12.5z" fill="currentColor"/>
+          <path d="M2.5 17 9.5 17 9.5 18.5 2.5 18.5z" fill="currentColor" opacity="0.85"/>
+          <path d="M18 18 24 19.5 8 29 5 29z" fill="currentColor"/>
+          <ellipse cx="10" cy="27.5" rx="3" ry="1.2" fill="currentColor" opacity="0.72"/>
+          <ellipse cx="6.5" cy="27.5" rx="2.2" ry="1" fill="currentColor" opacity="0.55"/>
+        </svg>
+      )
+    case 'a380':
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M1.5 15.5C1.5 13.8 4.5 12 8.5 12H22C26 12 30 13.8 30 15.5S26 19 22 19H8.5C4.5 19 1.5 17.2 1.5 15.5z" fill="currentColor"/>
+          <path d="M30 13.5 33 15.5 30 17.5z" fill="currentColor"/>
+          <path d="M2.5 12 2.5 6.5 8 12z" fill="currentColor"/>
+          <path d="M2 17.5 10 17.5 10 19 2 19z" fill="currentColor" opacity="0.85"/>
+          <path d="M17 18.5 24 20 7 29 4 29z" fill="currentColor"/>
+          <path d="M17 12 24 10.5 7 3 4 3z" fill="currentColor" opacity="0.6"/>
+          <ellipse cx="10" cy="27.5" rx="2.8" ry="1.1" fill="currentColor" opacity="0.72"/>
+          <ellipse cx="6.5" cy="27.5" rx="2.2" ry="1" fill="currentColor" opacity="0.55"/>
+          <ellipse cx="10" cy="4.5" rx="2.8" ry="1.1" fill="currentColor" opacity="0.5"/>
+        </svg>
+      )
+    case 'a350':
+      return (
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M2 15.5C2 14 4.5 12.3 8 12.3H22.5C26.5 12.3 30 14 30 15.5S26.5 18.7 22.5 18.7H8C4.5 18.7 2 17 2 15.5z" fill="currentColor"/>
+          <path d="M30 13.8 33.5 15.5 30 17.2z" fill="currentColor"/>
+          <path d="M3 12.3 3 6.5 7.5 12.3z" fill="currentColor"/>
+          <path d="M2.5 17.5 10 17.5 10 18.7 2.5 18.7z" fill="currentColor" opacity="0.85"/>
+          <path d="M18 18.5 24 20 8 30 5 30z" fill="currentColor"/>
+          <path d="M9 29.5 7.5 26 9.5 28z" fill="currentColor" opacity="0.8"/>
+          <ellipse cx="10.5" cy="28" rx="3" ry="1.1" fill="currentColor" opacity="0.72"/>
+        </svg>
+      )
+    case 'cargo':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M3 10.5C3 9 5 8 7.5 8H18C20.5 8 22 9 22 10.5S20.5 13 18 13H7.5C5 13 3 12 3 10.5z"/>
+          <path d="M22 9.5 24.5 10.5 22 11.5z"/>
+          <path d="M4 8 4 4.5 7 8z"/>
+          <path d="M3.5 12 8.5 12 8.5 13 3.5 13z" opacity="0.8"/>
+          <path d="M13.5 12.5 18 13.5 7 20 4.5 20z"/>
+          <rect x="8" y="8" width="8" height="4" rx="0.5" opacity="0.35"/>
+          <ellipse cx="8" cy="19.5" rx="2.2" ry="0.9" opacity="0.7"/>
+        </svg>
+      )
+    case 'drone':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" stroke="none" opacity="0.8"/>
+          <path d="M9 9 5 5m10 4 4-4M9 15l-4 4m14-4 4 4"/>
+          <ellipse cx="4.5" cy="4.5" rx="2.5" ry="1.2" fill="currentColor" stroke="none" opacity="0.6"/>
+          <ellipse cx="19.5" cy="4.5" rx="2.5" ry="1.2" fill="currentColor" stroke="none" opacity="0.6"/>
+          <ellipse cx="4.5" cy="19.5" rx="2.5" ry="1.2" fill="currentColor" stroke="none" opacity="0.6"/>
+          <ellipse cx="19.5" cy="19.5" rx="2.5" ry="1.2" fill="currentColor" stroke="none" opacity="0.6"/>
+        </svg>
+      )
+    case 'concorde':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M2 12.5C2 11.5 3.5 11 6 11H17C19.5 11 22 11.5 22 12.5S19.5 14 17 14H6C3.5 14 2 13.5 2 12.5z"/>
+          <path d="M22 11.5 25 12.5 22 13.5z"/>
+          <path d="M3 11 3 5 8 11z"/>
+          <path d="M2.5 13.5 7 13.5 7 14 2.5 14z" opacity="0.8"/>
+          <path d="M15 13.5 19.5 14.5 4 22 2 22z"/>
+        </svg>
+      )
+    case 'radar':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+          <path d="M12 12 7 4.5" strokeWidth="1.4"/>
+          <circle cx="12" cy="12" r="4.5" opacity="0.5"/>
+          <circle cx="12" cy="12" r="8" opacity="0.3"/>
+          <path d="M12 20v2M4 12H2M22 12h-2" strokeWidth="1.3" opacity="0.6"/>
+        </svg>
+      )
+    case 'runway':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 21 12 3l9 18" strokeLinejoin="round"/>
+          <path d="M6.5 14.5h11M8.5 18.5h7" strokeWidth="1.4"/>
+          <path d="M12 10v2.5" strokeWidth="1.2" opacity="0.6"/>
+        </svg>
+      )
+    case 'waypoint':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <polygon points="12,3 22,9 22,15 12,21 2,15 2,9" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+          <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+          <line x1="12" y1="3" x2="12" y2="9.5" stroke="currentColor" strokeWidth="1.2" opacity="0.45"/>
+          <line x1="12" y1="14.5" x2="12" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.45"/>
+          <line x1="2" y1="9" x2="9.5" y2="13" stroke="currentColor" strokeWidth="1.2" opacity="0.45"/>
+          <line x1="14.5" y1="11" x2="22" y2="15" stroke="currentColor" strokeWidth="1.2" opacity="0.45"/>
+        </svg>
+      )
+    case 'trophy':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M5 3h14v7a7 7 0 0 1-14 0V3z" opacity="0.9"/>
+          <path d="M5 6H2a2 2 0 0 0 2 2V6zm14 0h3a2 2 0 0 1-2 2V6z" opacity="0.6"/>
+          <rect x="9" y="17" width="6" height="2" rx="0.5"/>
+          <rect x="7" y="19" width="10" height="2" rx="1"/>
+          <path d="M12 10v4" stroke="white" strokeWidth="1.4" strokeLinecap="round" opacity="0.4"/>
+        </svg>
+      )
+    case 'shield':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2.5 3 6v6c0 5 3.8 9.3 9 10.5C17.2 21.3 21 17 21 12V6L12 2.5Z" opacity="0.9"/>
+          <path d="M8 12l3 3 5-5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/>
+        </svg>
+      )
+    case 'diamond':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2 22 9 12 22 2 9Z" opacity="0.9"/>
+          <path d="M2 9h20" fill="none" stroke="white" strokeWidth="1.2" opacity="0.3"/>
+          <path d="M7 9 12 2l5 7" fill="none" stroke="white" strokeWidth="1" opacity="0.2"/>
+        </svg>
+      )
+    case 'ribbon':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="9" r="5" opacity="0.9"/>
+          <path d="M9 13.5 6 21l6-3 6 3-3-7.5" opacity="0.75"/>
+          <circle cx="12" cy="9" r="2.5" fill="none" stroke="white" strokeWidth="1.3" opacity="0.4"/>
+        </svg>
+      )
+    case 'headset':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 14v-2a9 9 0 0 1 18 0v2"/>
+          <rect x="2" y="14" width="4" height="5" rx="2" fill="currentColor" stroke="none" opacity="0.85"/>
+          <rect x="18" y="14" width="4" height="5" rx="2" fill="currentColor" stroke="none" opacity="0.85"/>
+          <path d="M22 19c0 2-1.5 3-3 3h-2" strokeWidth="1.4"/>
+        </svg>
+      )
+    case 'atc':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="8" y="14" width="8" height="7" rx="1" fill="currentColor" opacity="0.8"/>
+          <path d="M11 14V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          <path d="M13 14V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          <path d="M12 9C12 9 8 7 5 4M12 9c0 0 4-2 7-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          <path d="M12 9c0 0-5 1-8 5M12 9c0 0 5 1 8 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.55"/>
+          <circle cx="12" cy="9" r="1.5" fill="currentColor"/>
+        </svg>
+      )
+    case 'calendar':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2"/>
+          <path d="M8 3v4M16 3v4M3 10h18"/>
+          <path d="m12 13 .95 1.92 2.12.31-1.53 1.5.36 2.11L12 17.84l-1.9 1 .36-2.11-1.53-1.5 2.12-.31L12 13Z" fill="currentColor" stroke="none"/>
+        </svg>
+      )
+    case 'fireworks':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 12V4M12 12l5.7-5.7M12 12l8 0M12 12l5.7 5.7M12 12l-5.7-5.7M12 12H4M12 12l-5.7 5.7"/>
+          <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="2.5" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="19.2" cy="4.8" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="4.8" cy="4.8" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="21.5" cy="12" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="2.5" cy="12" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="19.2" cy="19.2" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+          <circle cx="4.8" cy="19.2" r="1" fill="currentColor" stroke="none" opacity="0.7"/>
+        </svg>
+      )
+    case 'balloon':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 2a7 7 0 0 1 7 7c0 3.5-3 6-4.5 7.5h-5C8 15 5 12.5 5 9a7 7 0 0 1 7-7Z"/>
+          <path d="M9.5 2.6C8.5 4.2 8 6.5 8 9c0 3 1.2 5.5 2 7.5M14.5 2.6c1 1.6 1.5 3.9 1.5 6.4 0 3-1.2 5.5-2 7.5" strokeWidth="1.2" opacity="0.55"/>
+          <path d="M9.8 16.5 10.4 19h3.2l.6-2.5"/>
+          <rect x="10" y="19" width="4" height="2.6" rx="0.6" fill="currentColor" stroke="none" opacity="0.85"/>
+        </svg>
+      )
+    case 'banner':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 22V3"/>
+          <path d="M5 4h14l-3 4 3 4H5" fill="currentColor" opacity="0.85"/>
+        </svg>
+      )
+    case 'megaphone':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 10v4a1 1 0 0 0 1 1h2l3.5 4a1 1 0 0 0 1.5-.8V5.8A1 1 0 0 0 9.5 5L6 9H4a1 1 0 0 0-1 1Z" fill="currentColor" opacity="0.85" stroke="none"/>
+          <path d="M14.5 8.5a5 5 0 0 1 0 7M17.5 6a9 9 0 0 1 0 12" strokeWidth="1.6"/>
+        </svg>
+      )
+    case 'formation':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 3 15 9.5 12 8.5 9 9.5 12 3Z"/>
+          <path d="M6.5 12.5 9.5 19 6.5 18 3.5 19 6.5 12.5Z" opacity="0.75"/>
+          <path d="M17.5 12.5 20.5 19 17.5 18 14.5 19 17.5 12.5Z" opacity="0.75"/>
+        </svg>
+      )
+    case 'island':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M11 9c-1-3-3.5-4.5-6-4 1.5 1 2.5 2.5 3 4"/>
+          <path d="M11 9c1.5-2.5 4.5-3.5 7-2.5-2 .5-3.5 1.5-4.5 3"/>
+          <path d="M11 9c.3 2.5 0 5.5-1 8.5" strokeWidth="1.8"/>
+          <path d="M3 19c1.8-2.5 4.5-3.5 9-3.5s7.2 1 9 3.5" fill="currentColor" opacity="0.4" stroke="none"/>
+          <path d="M2.5 21h3M6.5 21H10m4 0h3.5m2 0H22" strokeWidth="1.4" opacity="0.6"/>
+        </svg>
+      )
+    case 'palm':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M11.5 9.5C10 14 9.5 17.5 10 21" strokeWidth="1.9"/>
+          <path d="M11.5 9.5C9.5 6.5 6.5 5.5 3.5 6.5c2 .8 3.5 2 4.5 3.5"/>
+          <path d="M11.5 9.5c-.5-3.5 1-6.3 4-7.5-.8 2-.8 3.9-.2 5.5"/>
+          <path d="M11.5 9.5c2.5-2.5 5.7-3 8.5-1.5-2.2.3-4 1.2-5.3 2.5"/>
+          <path d="M11.5 9.5c3.5-.5 6.3 1 7.8 4-2-1-4-1.2-5.8-.7"/>
+          <path d="M4 21c1.8-1 4-1.5 6-1.5s4.2.5 6 1.5" strokeWidth="1.4" opacity="0.6"/>
+        </svg>
+      )
+    case 'island-plane':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M14 5.5 20.5 3l-1 3-4 2-.5 3.5-1.5-1L11 12l-1-1 1.5-2.5-1-1.5 3.5.5Z" fill="currentColor" stroke="none" opacity="0.9"/>
+          <path d="M8.5 13c-1-2-2.8-3-5-2.8 1.3.7 2.3 1.6 2.9 2.8"/>
+          <path d="M8.5 13c1.2-1.6 3-2.2 5-1.7-1.4.4-2.5 1-3.3 2"/>
+          <path d="M8.5 13c.2 2 0 4.2-.7 6.5" strokeWidth="1.7"/>
+          <path d="M2.5 20.5c1.7-1.6 4-2.3 7.5-2.3s5.8.7 7.5 2.3" fill="currentColor" opacity="0.35" stroke="none"/>
+          <path d="M2 21.5h20" strokeWidth="1.3" opacity="0.6"/>
+        </svg>
+      )
+    case 'cocktail':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 4h16l-8 9-8-9Z" fill="currentColor" opacity="0.35"/>
+          <path d="M4 4h16l-8 9-8-9Z"/>
+          <path d="M6.2 6.5h11.6" strokeWidth="1.3" opacity="0.6"/>
+          <path d="M12 13v7M8 21.5h8"/>
+          <circle cx="16.5" cy="3.5" r="1.8" fill="currentColor" stroke="none" opacity="0.8"/>
+          <path d="M16.5 3.5 14 6.2" strokeWidth="1.3"/>
+        </svg>
+      )
+    case 'sunset':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6 15a6 6 0 0 1 12 0" fill="currentColor" opacity="0.75" stroke="none"/>
+          <path d="M6 15a6 6 0 0 1 12 0"/>
+          <path d="M12 3v3M4.2 7.2l2.1 2.1M19.8 7.2l-2.1 2.1M2 15h2m16 0h2"/>
+          <path d="M2.5 18.5c1.2 1 2.5 1 3.7 0s2.5-1 3.7 0 2.5 1 3.7 0 2.5-1 3.7 0 2.4 1 3.7 0" strokeWidth="1.5" opacity="0.7"/>
+        </svg>
+      )
+    case 'wave':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 3-2" opacity="0.55"/>
+          <path d="M3 13c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 3-2"/>
+          <path d="M3 18c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 3-2" opacity="0.55"/>
+        </svg>
+      )
+    case 'sunglasses':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 9h20M4 9l1-4m15 4-1-4" strokeWidth="1.4" opacity="0.7"/>
+          <path d="M3.5 9a4 4 0 0 0 .8 3.6c1 1.2 3.2 1.4 4.5.4 1-.8 1.4-2.4 1.2-4H3.5Z" fill="currentColor" opacity="0.85"/>
+          <path d="M20.5 9a4 4 0 0 1-.8 3.6c-1 1.2-3.2 1.4-4.5.4-1-.8-1.4-2.4-1.2-4h6.5Z" fill="currentColor" opacity="0.85"/>
+          <path d="M10 10.5c.6-.7 3.4-.7 4 0" strokeWidth="1.4"/>
+        </svg>
+      )
+    case 'surfboard':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20.5 3.5c.8 4.5-1 10-5.5 14.5-2.5 2.5-5.5 3.7-8.5 3-.7-3 .5-6 3-8.5C14 3.5 16 2.7 20.5 3.5Z" fill="currentColor" opacity="0.8"/>
+          <path d="M20.5 3.5 6.5 17.5" stroke="white" strokeWidth="1.2" opacity="0.45"/>
+          <path d="M2 21.5c1.2-1 2.4-1 3.6 0" strokeWidth="1.4" opacity="0.6"/>
+        </svg>
+      )
+    case 'snowflake':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 3v18M12 3l-2 2m2-2 2 2m-2 14-2 2m2-2 2 2"/>
+          <path d="M4.2 7.5l15.6 9M4.2 7.5l.7-2.7m-.7 2.7-2.7.8m18.3 8.2 2.7-.8m-2.7.8-.7 2.7"/>
+          <path d="M19.8 7.5l-15.6 9m15.6-9 .7-2.7m-.7 2.7 2.7.8M4.2 16.5l-2.7-.8m2.7.8.7 2.7"/>
+        </svg>
+      )
+    case 'sun':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" fill="currentColor" opacity="0.85" stroke="none"/>
+          <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5m14 0h2.5M5.3 5.3l1.8 1.8M17 17l1.8 1.8M18.7 5.3 17 7M7 17l-1.7 1.8"/>
+        </svg>
+      )
+    case 'leaf':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 20C5 10 10 4 20 4c0 10-5 15-13 15" fill="currentColor" opacity="0.8" stroke="none"/>
+          <path d="M4 21c3-6 7-10 12-13" strokeWidth="1.5"/>
+        </svg>
+      )
+    case 'flower':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="6" r="3.2" opacity="0.8"/>
+          <circle cx="17.7" cy="10.1" r="3.2" opacity="0.8"/>
+          <circle cx="15.5" cy="16.9" r="3.2" opacity="0.8"/>
+          <circle cx="8.5" cy="16.9" r="3.2" opacity="0.8"/>
+          <circle cx="6.3" cy="10.1" r="3.2" opacity="0.8"/>
+          <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.4"/>
+        </svg>
+      )
+    case 'umbrella':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z" fill="currentColor" opacity="0.8" stroke="none"/>
+          <path d="M7 12c0-3.5 2-9 5-9s5 5.5 5 9" strokeWidth="1.2" opacity="0.5"/>
+          <path d="M12 12v7a2 2 0 0 0 4 0"/>
+        </svg>
+      )
+    case 'soccer':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/>
+          <path d="m12 7.5 4.3 3.1-1.65 5H9.35L7.7 10.6 12 7.5Z" fill="currentColor" stroke="none" opacity="0.85"/>
+          <path d="M12 2.5v5M16.3 10.6l4.6-1.5M14.65 15.6l2.85 4.1M9.35 15.6 6.5 19.7M7.7 10.6 3.1 9.1" strokeWidth="1.3" opacity="0.7"/>
+        </svg>
+      )
+    case 'basketball':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/>
+          <path d="M12 2.5v19M2.5 12h19"/>
+          <path d="M5.3 5.3c3.7 3.7 3.7 9.7 0 13.4M18.7 5.3c-3.7 3.7-3.7 9.7 0 13.4" strokeWidth="1.4" opacity="0.8"/>
+        </svg>
+      )
+    case 'tennis':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/>
+          <path d="M4 5.5c4 1.5 6.5 4.5 6.5 8.5 0 2.6-1 5-2.8 7M20 5.5c-4 1.5-6.5 4.5-6.5 8.5 0 2.6 1 5 2.8 7" strokeWidth="1.4" opacity="0.85"/>
+        </svg>
+      )
+    case 'volleyball':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/>
+          <path d="M12 2.5c1.5 3.5 1.5 7 0 9.5-1.6 2.7-4.5 4.3-8.7 4.6" strokeWidth="1.4" opacity="0.85"/>
+          <path d="M12 12c3 .5 5.6 2.2 7.5 5.3" strokeWidth="1.4" opacity="0.85"/>
+          <path d="M12 12C9 11.4 6.8 9.5 5.4 6.2" strokeWidth="1.4" opacity="0.85"/>
+        </svg>
+      )
+    case 'checkered-flag':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 22V3"/>
+          <path d="M5 4h14v10H5" strokeWidth="1.5"/>
+          <path d="M5 4h3.5v3.5H5Zm7 0h3.5v3.5H12ZM8.5 7.5H12V11H8.5Zm7 0H19V11h-3.5ZM5 11h3.5v3H5Zm7 0h3.5v3H12Z" fill="currentColor" stroke="none" opacity="0.85"/>
+        </svg>
+      )
+    case 'racecar':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 13.5h3l2.5-3h6L16 13h4a2 2 0 0 1 2 2v1.5h-2.5M5 16.5H2v-3" strokeWidth="1.5"/>
+          <path d="M7.5 10.5 9 8h4l1.5 2.5" strokeWidth="1.5"/>
+          <path d="M2 13.5h20" strokeWidth="1.2" opacity="0.5"/>
+          <circle cx="7.5" cy="16.5" r="2.3" fill="currentColor" stroke="none" opacity="0.85"/>
+          <circle cx="17" cy="16.5" r="2.3" fill="currentColor" stroke="none" opacity="0.85"/>
+          <circle cx="7.5" cy="16.5" r="0.9" fill="white" stroke="none" opacity="0.4"/>
+          <circle cx="17" cy="16.5" r="0.9" fill="white" stroke="none" opacity="0.4"/>
+        </svg>
+      )
+    case 'helmet':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 13a8 8 0 0 1 16 0v4.5a1.5 1.5 0 0 1-1.5 1.5H14l-1.5-2H4.8A1.8 1.8 0 0 1 3 15.2c0-.7.3-1.4.8-1.8L4 13Z" fill="currentColor" opacity="0.8"/>
+          <path d="M4.5 10.5H13a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H3.4" stroke="white" strokeWidth="1.3" opacity="0.45"/>
+        </svg>
+      )
+    case 'steering-wheel':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/>
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+          <path d="M2.8 10.5c3-.9 6.1-1.4 9.2-1.4s6.2.5 9.2 1.4" strokeWidth="1.5"/>
+          <path d="M12 14.2V21.5M9.9 13.6l-6 4.6M14.1 13.6l6 4.6" strokeWidth="1.5"/>
+        </svg>
+      )
+    case 'podium':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="8.5" y="9" width="7" height="12" rx="0.5"/>
+          <rect x="1.5" y="13" width="7" height="8" rx="0.5" opacity="0.7"/>
+          <rect x="15.5" y="15.5" width="7" height="5.5" rx="0.5" opacity="0.55"/>
+          <path d="m12 2.2.95 1.92 2.12.31-1.53 1.5.36 2.11L12 7.04l-1.9 1 .36-2.11-1.53-1.5 2.12-.31L12 2.2Z"/>
+        </svg>
+      )
+    case 'dumbbell':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 12h6"/>
+          <rect x="4.5" y="8" width="3" height="8" rx="1" fill="currentColor" stroke="none" opacity="0.85"/>
+          <rect x="16.5" y="8" width="3" height="8" rx="1" fill="currentColor" stroke="none" opacity="0.85"/>
+          <rect x="1.5" y="9.5" width="2.2" height="5" rx="0.9" fill="currentColor" stroke="none" opacity="0.6"/>
+          <rect x="20.3" y="9.5" width="2.2" height="5" rx="0.9" fill="currentColor" stroke="none" opacity="0.6"/>
+        </svg>
+      )
+    case 'stopwatch':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="13.5" r="8"/>
+          <path d="M10 2h4M12 2v3.5"/>
+          <path d="m18.5 6.5 1.5-1.5" strokeWidth="1.5"/>
+          <path d="M12 13.5V9.5M12 13.5l3 2" strokeWidth="1.8"/>
+        </svg>
+      )
+    case 'terminal':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2.5" y="11" width="13" height="9" rx="1" fill="currentColor" opacity="0.75" stroke="none"/>
+          <path d="M5.5 14v3M8.5 14v3M11.5 14v3" stroke="white" strokeWidth="1.3" opacity="0.5"/>
+          <path d="M18 20v-9.5a2.5 2.5 0 0 1 5 0V12" />
+          <path d="M17 6.5h3M18.5 5v3"/>
+          <path d="M16.5 20H23" strokeWidth="1.4"/>
+        </svg>
+      )
+    case 'suitcase':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="6" y="7" width="12" height="13" rx="2" fill="currentColor" opacity="0.85" stroke="none"/>
+          <path d="M9.5 7V4.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7"/>
+          <path d="M9.5 10.5v6M14.5 10.5v6" stroke="white" strokeWidth="1.3" opacity="0.45"/>
+          <path d="M8 21.5v.01M16 21.5v.01" strokeWidth="2"/>
+        </svg>
+      )
+    case 'boarding-pass':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 7a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7Z"/>
+          <path d="M15 6v12" strokeDasharray="2 2.4" strokeWidth="1.3" opacity="0.6"/>
+          <path d="M6 10.5h5M6 13.5h3.5" strokeWidth="1.4" opacity="0.75"/>
+        </svg>
+      )
+    case 'windsock':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 21V4"/>
+          <path d="M5 5l15 1.5-1.5 5L5 10V5Z" fill="currentColor" opacity="0.85" stroke="none"/>
+          <path d="M9.8 5.5v5M14.2 5.9v4.4" stroke="white" strokeWidth="1.3" opacity="0.45"/>
+          <path d="M3 21h4" strokeWidth="1.5"/>
+        </svg>
+      )
+    case 'fuel':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="4" y="3.5" width="10" height="17" rx="1.5" fill="currentColor" opacity="0.85" stroke="none"/>
+          <rect x="6.2" y="6" width="5.6" height="4" rx="0.6" stroke="white" strokeWidth="1.3" opacity="0.5"/>
+          <path d="M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V17a1.5 1.5 0 0 0 3 0v-6.5L18.5 8"/>
+          <path d="M2.5 20.5h13" strokeWidth="1.5"/>
+        </svg>
+      )
+    case 'departure':
+      // Material Symbols flight_takeoff — Apache 2.0
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M2.5 19h19v2h-19v-2Zm19.57-9.36c-.21-.8-1.04-1.28-1.84-1.06L14.92 10l-6.9-6.43-1.93.51 4.14 7.17-4.97 1.33-1.97-1.54-1.45.39 2.59 4.49 16.57-4.43c.83-.23 1.28-1.05 1.07-1.85Z"/>
+        </svg>
+      )
+    case 'arrival':
+      // Material Symbols flight_land — Apache 2.0
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M2.5 19h19v2h-19v-2Zm7.18-5.73 4.35 1.16 5.31 1.42c.8.21 1.62-.26 1.84-1.06.21-.8-.26-1.62-1.06-1.84l-5.31-1.42-2.76-9.02L10.12 2v8.28L5.15 8.95l-.93-2.32-1.45-.39v5.17l1.6.43 5.31 1.43Z"/>
         </svg>
       )
     case 'medal':
@@ -2579,6 +3514,44 @@ function renderBadgeIcon(icon: BadgeIcon) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function normalizeHexInput(raw: string) {
+  let value = raw.trim()
+  if (value && !value.startsWith('#')) value = `#${value}`
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value) ? value.toLowerCase() : null
+}
+
+function ColorField({ value, fallback, onChange }: { value: string, fallback?: string, onChange: (value: string) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const effectiveColor = value || fallback || '#000000'
+  return (
+    <div className="color-field">
+      <span className="color-field-swatch" style={{ backgroundColor: effectiveColor }}>
+        <input
+          type="color"
+          value={effectiveColor}
+          onChange={(e) => { onChange(e.target.value); setDraft(null) }}
+          aria-label="Color picker"
+        />
+      </span>
+      <input
+        type="text"
+        className="color-field-hex"
+        value={draft ?? value}
+        placeholder={fallback || '#000000'}
+        spellCheck={false}
+        maxLength={7}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          if (!e.target.value.trim()) { onChange(''); return }
+          const normalized = normalizeHexInput(e.target.value)
+          if (normalized) onChange(normalized)
+        }}
+        onBlur={() => setDraft(null)}
+      />
+    </div>
+  )
 }
 
 function loadFavoriteBackgrounds() {
@@ -3428,6 +4401,24 @@ function getAircraftFieldConfig(eventType: EventType): AircraftFieldConfig | nul
     }
   }
 
+  if (eventType === 'slotted') {
+    return {
+      enabledField: 'slottedAircraftEnabled' as AircraftEnabledField,
+      searchField: 'slottedAircraftSearch' as AircraftSearchField,
+      sourceField: 'slottedAircraftSource' as AircraftSourceField,
+      idField: 'slottedAircraftId' as AircraftIdField,
+      nameField: 'slottedAircraftName' as AircraftNameField,
+      registrationField: 'slottedAircraftRegistration' as AircraftRegistrationField,
+      photoUrlField: 'slottedAircraftPhotoUrl' as AircraftPhotoUrlField,
+      photoAttributionField: 'slottedAircraftPhotoAttribution' as AircraftPhotoAttributionField,
+      photoLinkbackField: 'slottedAircraftPhotoLinkback' as AircraftPhotoLinkbackField,
+      photoManualField: 'slottedAircraftPhotoManual' as AircraftPhotoManualField,
+      photoOffsetXField: 'slottedAircraftPhotoOffsetX' as AircraftPhotoOffsetXField,
+      photoOffsetYField: 'slottedAircraftPhotoOffsetY' as AircraftPhotoOffsetYField,
+      photoZoomField: 'slottedAircraftPhotoZoom' as AircraftPhotoZoomField,
+    }
+  }
+
   return null
 }
 
@@ -3445,6 +4436,8 @@ function getEventBonusPointsField(eventType: EventType): BonusField {
       return 'challengeBonusPoints'
     case 'community-goal':
       return 'communityGoalBonusPoints'
+    case 'slotted':
+      return 'slottedBonusPoints'
     default:
       return 'focusBonusPoints'
   }
@@ -3464,6 +4457,8 @@ function getEventRegistrationField(eventType: EventType): RegistrationField {
       return 'challengeRegistrationRequired'
     case 'community-goal':
       return 'communityGoalRegistrationRequired'
+    case 'slotted':
+      return 'slottedRegistrationRequired'
     default:
       return 'focusRegistrationRequired'
   }
@@ -3546,6 +4541,20 @@ function getVisualSectionCopy(eventType: EventType, strings: InterfaceCopy) {
   }
 }
 
+function getEventIcon(eventType: EventType): ReactNode {
+  switch (eventType) {
+    case 'event': return <Users size={14} />
+    case 'vatsim-region': return <Globe size={14} />
+    case 'focus-airport': return <Navigation size={14} />
+    case 'tour': return <Route size={14} />
+    case 'roster': return <List size={14} />
+    case 'curated-roster': return <BookMarked size={14} />
+    case 'community-challenge': return <Trophy size={14} />
+    case 'community-goal': return <Target size={14} />
+    case 'slotted': return <Clock size={14} />
+  }
+}
+
 function getEventName(eventType: EventType, strings: InterfaceCopy) {
   if (eventType === 'vatsim-region') {
     return strings.vatsimRegionEventName
@@ -3573,6 +4582,10 @@ function getEventName(eventType: EventType, strings: InterfaceCopy) {
 
   if (eventType === 'community-goal') {
     return strings.communityGoalEventName
+  }
+
+  if (eventType === 'slotted') {
+    return strings.slottedEventName
   }
 
   return strings.focusAirportEventName
@@ -3746,21 +4759,49 @@ function applyAirportOptionToForm(option: AirportCatalogOption) {
   }
 }
 
-function findAirportOptionsByCity(city: string) {
-  const normalizedCity = city.trim().toLowerCase()
+function findAirportOptionsByQuery(query: string): AirportCatalogOption[] {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
 
-  if (normalizedCity.length < 2) {
-    return []
+  const normalizedUpper = trimmed.toUpperCase()
+  const normalizedLower = trimmed.toLowerCase()
+
+  // ICAO/IATA prefix search (when query looks like a code)
+  if (/^[A-Z0-9]+$/i.test(trimmed)) {
+    const icaoMatches = airportCatalog.filter(
+      (a) => a.icao.startsWith(normalizedUpper) || (a.iata && a.iata.startsWith(normalizedUpper)),
+    )
+    if (icaoMatches.length > 0) {
+      return icaoMatches
+        .sort((a, b) => (a.iata ? 0 : 1) - (b.iata ? 0 : 1) || a.icao.localeCompare(b.icao))
+        .slice(0, 10)
+    }
   }
 
-  return airportCatalog
-    .filter((airport) => airport.city.toLowerCase() === normalizedCity)
-    .sort((left, right) => {
-      const leftHasIata = left.iata ? 0 : 1
-      const rightHasIata = right.iata ? 0 : 1
-      return leftHasIata - rightHasIata || left.name.localeCompare(right.name)
-    })
-    .slice(0, 8)
+  const startsName: AirportCatalogOption[] = []
+  const startsCity: AirportCatalogOption[] = []
+  const containsRest: AirportCatalogOption[] = []
+
+  for (const airport of airportCatalog) {
+    const nameLower = airport.name.toLowerCase()
+    const cityLower = airport.city.toLowerCase()
+    if (nameLower.startsWith(normalizedLower)) {
+      startsName.push(airport)
+    } else if (cityLower.startsWith(normalizedLower)) {
+      startsCity.push(airport)
+    } else if (nameLower.includes(normalizedLower) || cityLower.includes(normalizedLower)) {
+      containsRest.push(airport)
+    }
+  }
+
+  const sort = (a: AirportCatalogOption, b: AirportCatalogOption) =>
+    (a.iata ? 0 : 1) - (b.iata ? 0 : 1) || a.name.localeCompare(b.name)
+
+  return [...startsName.sort(sort), ...startsCity.sort(sort), ...containsRest.sort(sort)].slice(0, 10)
+}
+
+function findAirportOptionsByCity(city: string) {
+  return findAirportOptionsByQuery(city)
 }
 
 function getTourMapPoint(code: string) {
@@ -5513,6 +6554,7 @@ function App() {
   const [airportOptions, setAirportOptions] = useState<AirportCatalogOption[]>([])
   const [isGuideOpen, setIsGuideOpen] = useState(false)
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
+  const [isExportOpen, setIsExportOpen] = useState(false)
   const [archiveItems, setArchiveItems] = useState<CreationGalleryItem[]>([])
   const [archiveError, setArchiveError] = useState('')
   const [previewScale, setPreviewScale] = useState(0.5)
@@ -5525,6 +6567,63 @@ function App() {
   const [activeVatsimRegionDropdown, setActiveVatsimRegionDropdown] = useState<VatsimRegionDropdownTarget | null>(null)
   const [aircraftPhotoLayout, setAircraftPhotoLayout] = useState<AircraftPhotoLayout>(defaultAircraftPhotoLayout)
   const [communityTeams, setCommunityTeams] = useState<CommunityTeam[]>(initialStoredSettings.communityTeams)
+  const [bannerTab, setBannerTab] = useState<'airline' | 'event' | 'legs' | 'settings' | 'online'>('event')
+  const [badgeTab, setBadgeTab] = useState<'elements' | 'icons' | 'text' | 'colors'>('elements')
+  const [flagCountrySearch, setFlagCountrySearch] = useState('')
+  const [cityPhotoQuery, setCityPhotoQuery] = useState('')
+  const [cityPhotoResults, setCityPhotoResults] = useState<Array<{ title: string, thumbUrl: string }>>([])
+  const [cityPhotoLoading, setCityPhotoLoading] = useState(false)
+  const [cityPhotoApplying, setCityPhotoApplying] = useState('')
+
+  async function searchCityPhotos(presetQuery?: string) {
+    const city = (presetQuery ?? cityPhotoQuery).trim()
+    if (!city || cityPhotoLoading) return
+    if (presetQuery) setCityPhotoQuery(presetQuery)
+    setCityPhotoLoading(true)
+    setCityPhotoResults([])
+    try {
+      const controller = new AbortController()
+      const queries = [`${city} landmark`, `${city} skyline`, `${city} cityscape`, city]
+      const settled = await Promise.allSettled(queries.map((q) => searchWikimediaCommons(q, controller.signal)))
+      const merged = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+      const queryWords = city.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+      const seen = new Set<string>()
+      const unique = merged.filter((c) => {
+        if (seen.has(c.title) || c.width < 700 || c.height < 500) return false
+        if (c.height > c.width * 1.2) return false
+        const meta = `${c.title} ${c.categories.join(' ')}`.toLowerCase()
+        if (/(map|flag|coat|arms|diagram|logo|schema|plan|chart|drawing|interior|book|page|document|newspaper|journal|cover|manuscript|scan|stamp|postcard|poster|painting|portrait|engraving|illustration)/.test(meta)) return false
+        const matches = queryWords.filter((w) => meta.includes(w)).length
+        if (queryWords.length && matches < Math.min(2, queryWords.length)) return false
+        seen.add(c.title)
+        return true
+      })
+      setCityPhotoResults(unique.slice(0, 16).map((c) => ({ title: cleanWikimediaTitle(c.title), thumbUrl: c.thumbUrl })))
+    } catch {
+      setCityPhotoResults([])
+    } finally {
+      setCityPhotoLoading(false)
+    }
+  }
+
+  async function applyCityPhoto(thumbUrl: string) {
+    setCityPhotoApplying(thumbUrl)
+    try {
+      const response = await fetch(thumbUrl)
+      const blob = await response.blob()
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      updateBadgeField('badgePhoto', dataUrl)
+    } catch {
+      // network hiccup — keep previous photo
+    } finally {
+      setCityPhotoApplying('')
+    }
+  }
 
   const previewRef = useRef<HTMLDivElement | null>(null)
   const previewViewportRef = useRef<HTMLDivElement | null>(null)
@@ -5589,21 +6688,98 @@ function App() {
         layerStyleOrbital: 'Orbital',
         layerStyleWinged: 'Winged',
         layerStyleCrest: 'Crest',
-        iconStar: 'Star',
-        iconAircraft: 'Aircraft',
-        iconJet: 'Jet',
-        iconAirliner: 'Airliner',
-        iconProp: 'Prop',
-        iconHelicopter: 'Helicopter',
-        iconRoute: 'Route',
-        iconGlobe: 'Globe',
-        iconMedal: 'Medal',
-        iconCrown: 'Crown',
+        iconStar: 'Звезда',
+        iconAircraft: 'Самолёт',
+        iconJet: 'Джет',
+        iconAirliner: 'Авиалайнер',
+        iconProp: 'Винтовой',
+        iconHelicopter: 'Вертолёт',
+        iconCargo: 'Грузовой',
+        iconDrone: 'Дрон',
+        iconConcorde: 'Конкорд',
+        iconRoute: 'Маршрут',
+        iconGlobe: 'Глобус',
+        iconMedal: 'Медаль',
+        iconCrown: 'Корона',
         iconVatsim: 'VATSIM',
-        iconLaurel: 'Laurel',
-        previewTitle: 'Badge Preview / 200×200',
-        resolutionChip: 'PNG • 1:1',
-        exportHelp: 'PNG 200×200. Экспортирует текущий бейдж с выбранной палитрой и значком.',
+        iconLaurel: 'Лавр',
+        iconWings: 'Крылья',
+        iconCompass: 'Компас',
+        iconTower: 'Вышка',
+        iconRadar: 'Радар',
+        iconRunway: 'ВПП',
+        iconWaypoint: 'Вейпоинт',
+        iconTrophy: 'Кубок',
+        iconShield: 'Щит',
+        iconDiamond: 'Бриллиант',
+        iconRibbon: 'Лента',
+        iconHeadset: 'Гарнитура',
+        iconAtc: 'АДС',
+        iconB777: 'B777',
+        iconA380: 'A380',
+        iconA350: 'A350',
+        iconCalendar: 'Календарь',
+        iconFireworks: 'Салют',
+        iconBalloon: 'Аэростат',
+        iconBanner: 'Флаг',
+        iconMegaphone: 'Мегафон',
+        iconFormation: 'Группа',
+        iconIsland: 'Остров',
+        iconPalm: 'Пальма',
+        iconIslandPlane: 'На острова',
+        iconCocktail: 'Коктейль',
+        iconSunset: 'Закат',
+        iconWave: 'Волны',
+        iconSunglasses: 'Очки',
+        iconSurfboard: 'Сёрф',
+        iconSnowflake: 'Снежинка',
+        iconSun: 'Солнце',
+        iconLeaf: 'Осень',
+        iconFlower: 'Весна',
+        iconUmbrella: 'Пляж',
+        iconSoccer: 'Футбол',
+        iconBasketball: 'Баскетбол',
+        iconTennis: 'Теннис',
+        iconVolleyball: 'Волейбол',
+        iconCheckeredFlag: 'Финиш',
+        iconRacecar: 'Болид',
+        iconHelmet: 'Шлем',
+        iconSteeringWheel: 'Руль',
+        iconPodium: 'Подиум',
+        iconDumbbell: 'Гантеля',
+        iconStopwatch: 'Секундомер',
+        iconTerminal: 'Терминал',
+        iconSuitcase: 'Багаж',
+        iconBoardingPass: 'Посадочный',
+        iconWindsock: 'Ветроуказатель',
+        iconFuel: 'Топливо',
+        iconDeparture: 'Вылет',
+        iconArrival: 'Прилёт',
+        iconGroupAircraft: 'Самолёты',
+        iconGroupSilhouettes: 'Силуэты',
+        iconGroupNavigation: 'Навигация',
+        iconGroupAwards: 'Награды',
+        iconGroupVatsim: 'VATSIM / АДС',
+        iconGroupEvents: 'Ивенты',
+        iconGroupSeasonal: 'Сезонное',
+        iconGroupSport: 'Спорт и гонки',
+        iconGroupAirport: 'Аэропорт',
+        shapeRectangle: 'Прямоугольник',
+        gradientLabel: 'Градиент',
+        gradientSolid: 'Плоский',
+        gradientDiagonal: 'Диагональ',
+        gradientVertical: 'Вертикаль',
+        gradientRadial: 'Радиальный',
+        bgColor2Label: 'Цвет 2',
+        gradientAngleLabel: 'Угол',
+        photoLabel: 'Фото',
+        photoUploadLabel: 'Загрузить фото',
+        photoOpacityLabel: 'Прозрачность',
+        photoBlendLabel: 'Режим наложения',
+        photoClearLabel: 'Удалить',
+        previewTitle: 'Badge Preview',
+        resolutionChip: 'PNG • 2×',
+        exportHelp: 'PNG 400×400 (или 720×360 для прямоугольника). Экспортирует бейдж с текущей палитрой.',
         exportButton: 'Экспорт PNG',
         exportingButton: 'Экспортируем…',
         exportError: 'Не удалось экспортировать бейдж в PNG.',
@@ -5644,15 +6820,92 @@ function App() {
         iconAirliner: 'Airliner',
         iconProp: 'Prop',
         iconHelicopter: 'Helicopter',
+        iconCargo: 'Cargo',
+        iconDrone: 'Drone',
+        iconConcorde: 'Concorde',
         iconRoute: 'Route',
         iconGlobe: 'Globe',
         iconMedal: 'Medal',
         iconCrown: 'Crown',
         iconVatsim: 'VATSIM',
         iconLaurel: 'Laurel',
-        previewTitle: 'Badge Preview / 200×200',
-        resolutionChip: 'PNG • 1:1',
-        exportHelp: 'PNG 200×200. Exports the current badge with the selected palette and icon.',
+        iconWings: 'Wings',
+        iconCompass: 'Compass',
+        iconTower: 'Tower',
+        iconRadar: 'Radar',
+        iconRunway: 'Runway',
+        iconWaypoint: 'Waypoint',
+        iconTrophy: 'Trophy',
+        iconShield: 'Shield',
+        iconDiamond: 'Diamond',
+        iconRibbon: 'Ribbon',
+        iconHeadset: 'Headset',
+        iconAtc: 'ATC',
+        iconB777: 'B777',
+        iconA380: 'A380',
+        iconA350: 'A350',
+        iconCalendar: 'Calendar',
+        iconFireworks: 'Fireworks',
+        iconBalloon: 'Balloon',
+        iconBanner: 'Banner',
+        iconMegaphone: 'Megaphone',
+        iconFormation: 'Formation',
+        iconIsland: 'Island',
+        iconPalm: 'Palm',
+        iconIslandPlane: 'Island Trip',
+        iconCocktail: 'Cocktail',
+        iconSunset: 'Sunset',
+        iconWave: 'Waves',
+        iconSunglasses: 'Sunglasses',
+        iconSurfboard: 'Surfboard',
+        iconSnowflake: 'Snowflake',
+        iconSun: 'Sun',
+        iconLeaf: 'Autumn',
+        iconFlower: 'Spring',
+        iconUmbrella: 'Beach',
+        iconSoccer: 'Soccer',
+        iconBasketball: 'Basketball',
+        iconTennis: 'Tennis',
+        iconVolleyball: 'Volleyball',
+        iconCheckeredFlag: 'Finish Flag',
+        iconRacecar: 'Race Car',
+        iconHelmet: 'Helmet',
+        iconSteeringWheel: 'Wheel',
+        iconPodium: 'Podium',
+        iconDumbbell: 'Dumbbell',
+        iconStopwatch: 'Stopwatch',
+        iconTerminal: 'Terminal',
+        iconSuitcase: 'Luggage',
+        iconBoardingPass: 'Boarding Pass',
+        iconWindsock: 'Windsock',
+        iconFuel: 'Fuel',
+        iconDeparture: 'Departure',
+        iconArrival: 'Arrival',
+        iconGroupAircraft: 'Aircraft',
+        iconGroupSilhouettes: 'Silhouettes',
+        iconGroupNavigation: 'Navigation',
+        iconGroupAwards: 'Awards',
+        iconGroupVatsim: 'VATSIM / ATC',
+        iconGroupEvents: 'Events',
+        iconGroupSeasonal: 'Seasonal',
+        iconGroupSport: 'Sports & Racing',
+        iconGroupAirport: 'Airport',
+        shapeRectangle: 'Rectangle',
+        gradientLabel: 'Gradient',
+        gradientSolid: 'Solid',
+        gradientDiagonal: 'Diagonal',
+        gradientVertical: 'Vertical',
+        gradientRadial: 'Radial',
+        bgColor2Label: 'Color 2',
+        gradientAngleLabel: 'Angle',
+        photoLabel: 'Photo',
+        photoUploadLabel: 'Upload photo',
+        photoOpacityLabel: 'Opacity',
+        photoBlendLabel: 'Blend mode',
+        photoClearLabel: 'Remove',
+        previewTitle: 'Badge Preview',
+        resolutionChip: 'PNG • 2×',
+        exportHelp: 'PNG 400×400 (or 720×360 for rectangle). Exports the current badge with the selected palette.',
         exportButton: 'Export PNG',
         exportingButton: 'Exporting…',
         exportError: 'Badge PNG export failed.',
@@ -5673,6 +6926,14 @@ function App() {
   const isBadgeMode = appMode === 'badge'
   const previewBaseWidth = isBadgeMode ? 200 : 1920
   const previewBaseHeight = isBadgeMode ? 200 : 1080
+  const badgeBaseBackground = computeBadgeBaseBackground(
+    badgeForm.bgGradientStyle,
+    effectiveBadgePalette.backgroundColor,
+    badgeForm.bgColor2,
+    badgeForm.bgGradientAngle,
+  )
+  const previewDisplayWidth = previewBaseWidth
+  const previewDisplayHeight = previewBaseHeight
   const previewTitleText = isBadgeMode ? badgeStrings.previewTitle : strings.previewTitle
   const previewResolutionChip = isBadgeMode ? badgeStrings.resolutionChip : strings.resolutionChip
   const visualSectionCopy = getVisualSectionCopy(eventType, strings)
@@ -5747,6 +7008,44 @@ function App() {
     activeAircraftPhotoOffsetY,
     activeAircraftPhotoZoom,
   )
+
+  useEffect(() => {
+    const googleFonts: Record<string, string> = {
+      "'Inter', sans-serif": 'Inter:wght@400;600;700;800',
+      "'Roboto', sans-serif": 'Roboto:wght@400;700;900',
+      "'Oswald', sans-serif": 'Oswald:wght@400;600;700',
+      "'Rajdhani', sans-serif": 'Rajdhani:wght@500;600;700',
+      "'Bebas Neue', cursive": 'Bebas+Neue',
+      "'Orbitron', sans-serif": 'Orbitron:wght@400;700;900',
+      "'Exo 2', sans-serif": 'Exo+2:wght@400;600;700;800',
+    }
+    const family = googleFonts[badgeForm.fontFamily]
+    if (!family) return
+    const id = `gfont-${family.replace(/[^a-z0-9]/gi, '-')}`
+    if (document.getElementById(id)) return
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${family}&display=swap`
+    document.head.appendChild(link)
+  }, [badgeForm.fontFamily])
+
+  useEffect(() => {
+    if (!badgeForm.flagCountry) return
+    let cancelled = false
+    const url = `https://flagcdn.com/${badgeForm.flagCountry.toLowerCase()}.svg`
+    fetch(url)
+      .then((r) => r.text())
+      .then((svgText) => {
+        const stretchableSvg = svgText
+          .replace(/\spreserveAspectRatio="[^"]*"/, '')
+          .replace(/<svg\b/, '<svg preserveAspectRatio="none"')
+        const b64 = btoa(unescape(encodeURIComponent(stretchableSvg)))
+        if (!cancelled) updateBadgeField('flagData', `data:image/svg+xml;base64,${b64}`)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [badgeForm.flagCountry])
 
   useEffect(() => {
     if (!activeAircraftPhotoUrl) {
@@ -6192,7 +7491,7 @@ function App() {
         return
       }
 
-      setPreviewScale(Math.min(1, viewportWidth / previewBaseWidth))
+      setPreviewScale(Math.min(1, viewportWidth / previewDisplayWidth))
     }
 
     updatePreviewScale()
@@ -6203,7 +7502,7 @@ function App() {
     return () => {
       resizeObserver.disconnect()
     }
-  }, [previewBaseWidth])
+  }, [previewDisplayWidth])
 
   useEffect(() => {
     if (backgroundMode !== 'auto') {
@@ -6577,7 +7876,7 @@ function App() {
     }
 
     updateField('icao', normalizedValue)
-    setAirportOptions([])
+    setAirportOptions(normalizedValue.length >= 2 ? findAirportOptionsByQuery(normalizedValue) : [])
   }
 
   function toggleAircraftAssignment(enabled: boolean) {
@@ -7145,9 +8444,9 @@ function App() {
       await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)))
 
       const dataUrl = await toPng(previewRef.current, {
-        pixelRatio: 1,
-        canvasWidth: 200,
-        canvasHeight: 200,
+        pixelRatio: 2,
+        canvasWidth: 400,
+        canvasHeight: 400,
         width: 200,
         height: 200,
       })
@@ -7441,7 +8740,7 @@ function App() {
       ...team,
       name: team.name.trim() || `${strings.communityTeamFallbackName} ${index + 1}`,
       goalLabel: countTypeMeta.label,
-      targetLabel: formatTargetAmount(team.targetAmount, locale),
+      targetLabel: formatTargetAmount(team.targetAmount, 'en'),
       unitLabel: countTypeMeta.unit,
     }
   })
@@ -7451,12 +8750,13 @@ function App() {
       ...team,
       name: team.name.trim() || `${bannerStrings.communityTeamFallbackName} ${index + 1}`,
       goalLabel: countTypeMeta.label,
-      targetLabel: formatTargetAmount(team.targetAmount, locale),
+      targetLabel: formatTargetAmount(team.targetAmount, 'en'),
       unitLabel: countTypeMeta.unit,
     }
   })
   const bannerCommunityGoalCountTypeMeta = getCommunityCountTypeMeta('en', form.communityGoalCountType)
-  const bannerFormattedCommunityGoalTarget = formatTargetAmount(form.communityGoalTargetAmount, locale)
+  const bannerFormattedCommunityGoalTarget = formatTargetAmount(form.communityGoalTargetAmount, 'en')
+  const slottedWaves = parseSlottedWaves(form.slottedWaves)
   const countryFlagCode = getFlagAssetCode(normalizedCountryCode)
   const legCountryCodes = displayedRouteLegPairs.flatMap(({ from, to }) => [
     getIcaoCountryCode(from),
@@ -7998,61 +9298,6 @@ function App() {
           </div>
         ) : null}
 
-        {eventType === 'focus-airport' && autoBackgroundOptions.length > 0 ? (
-          <div className="auto-background-picker">
-            <span className="section-mini-title">{strings.backgroundSuggestionsLabel}</span>
-
-            <div className="auto-background-actions">
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={randomizeAutoBackgroundOption}
-                disabled={autoBackgroundOptions.length === 0 || isAutoSelectingBackground || isApplyingFavoriteBackground}
-              >
-                {strings.backgroundRandomizeButton}
-              </button>
-
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={regenerateAutoBackgroundOptions}
-                disabled={isAutoSelectingBackground || isApplyingFavoriteBackground}
-              >
-                {strings.backgroundRegenerateButton}
-              </button>
-
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={saveCurrentBackgroundToFavorites}
-                disabled={!selectedAutoBackgroundOption || isAutoSelectingBackground || isApplyingFavoriteBackground || isFavoriteBackgroundSaved}
-              >
-                {strings.backgroundSaveFavoriteButton}
-              </button>
-            </div>
-
-            <div className="auto-background-grid">
-              {autoBackgroundOptions.map((option) => (
-                <button
-                  key={option.key}
-                  className={`auto-background-card${backgroundUrl === option.objectUrl ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => selectAutoBackgroundOption(option)}
-                  aria-pressed={backgroundUrl === option.objectUrl}
-                >
-                  <span
-                    className="auto-background-card-image"
-                    style={{
-                      backgroundImage: `linear-gradient(180deg, rgba(10, 12, 16, 0.04), rgba(10, 12, 16, 0.28)), url(${option.objectUrl})`,
-                    }}
-                    aria-hidden="true"
-                  ></span>
-                  <span className="auto-background-card-label">{option.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         {eventType === 'focus-airport' ? (
           <div className="favorite-background-picker">
@@ -8272,131 +9517,103 @@ function App() {
     </>
   )
 
+  const panelHeaderNode = (
+    <div className="panel-header">
+      <img src="/logo.png" alt="Banner Generator" className="panel-app-logo" />
+      <div className="panel-header-tools">
+        <button className="icon-button" type="button" onClick={() => setIsGuideOpen(true)} aria-label={guideStrings.title}>
+          <HelpCircle size={16} />
+        </button>
+        <button className="icon-button" type="button" onClick={() => setIsArchiveOpen(true)} aria-label={guideStrings.archiveTitle}>
+          <Archive size={16} />
+        </button>
+        <div className="language-switcher" role="group" aria-label={strings.interfaceLanguageLabel}>
+          <button className={`language-button${locale === 'ru' ? ' is-active' : ''}`} type="button" onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>RU</button>
+          <button className={`language-button${locale === 'en' ? ' is-active' : ''}`} type="button" onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>EN</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const modeTabsNode = (
+    <div className="mode-tabs" role="tablist" aria-label="Generator mode">
+      <button className={`mode-tab${appMode === 'banner' ? ' is-active' : ''}`} type="button" role="tab" aria-selected={appMode === 'banner'} onClick={() => setAppMode('banner')}>
+        <Plane size={15} /><span>{badgeStrings.appTabBanner}</span>
+      </button>
+      <button className={`mode-tab${appMode === 'badge' ? ' is-active' : ''}`} type="button" role="tab" aria-selected={appMode === 'badge'} onClick={() => setAppMode('badge')}>
+        <Shield size={15} /><span>{badgeStrings.appTabBadge}</span>
+      </button>
+      <button className={`mode-tab${appMode === 'badge3d' ? ' is-active' : ''}`} type="button" role="tab" aria-selected={appMode === 'badge3d'} onClick={() => setAppMode('badge3d')}>
+        <Hexagon size={15} /><span>{locale === 'ru' ? '3D Бейдж' : '3D Badge'}</span>
+      </button>
+    </div>
+  )
+
   return (
     <div className={`app-shell brand-${brandKey}`}>
+      {appMode === 'badge3d' ? (
+        <Badge3DStudio locale={locale} panelHeader={panelHeaderNode} modeTabs={modeTabsNode} />
+      ) : (
+      <>
       <aside className="control-panel">
-        <div className="panel-copy">
-          <div className="panel-topbar">
-            <span className="panel-kicker">{activeBrand.fullName}</span>
+        {panelHeaderNode}
+        {modeTabsNode}
 
-            <div className="panel-topbar-tools">
-              <button className="icon-button" type="button" onClick={() => setIsGuideOpen(true)} aria-label={guideStrings.title}>
-                ?
-              </button>
-
-              <button className="ghost-button panel-archive-button" type="button" onClick={() => setIsArchiveOpen(true)}>
-                {guideStrings.archiveTitle}
-              </button>
-
-              <div className="language-switcher" role="group" aria-label={strings.interfaceLanguageLabel}>
-                <button
-                  className={`language-button${locale === 'ru' ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => setLocale('ru')}
-                  aria-pressed={locale === 'ru'}
-                >
-                  RU
-                </button>
-                <button
-                  className={`language-button${locale === 'en' ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => setLocale('en')}
-                  aria-pressed={locale === 'en'}
-                >
-                  EN
-                </button>
-              </div>
-            </div>
+        {!isBadgeMode ? (
+          <div className="sub-tabs" role="tablist">
+            <button className={`sub-tab${bannerTab === 'airline' ? ' is-active' : ''}`} type="button" onClick={() => setBannerTab('airline')}><Plane size={13} /><span>Airline</span></button>
+            <button className={`sub-tab${bannerTab === 'event' ? ' is-active' : ''}`} type="button" onClick={() => setBannerTab('event')}><Settings size={13} /><span>Event</span></button>
+            <button className={`sub-tab${bannerTab === 'legs' ? ' is-active' : ''}`} type="button" onClick={() => setBannerTab('legs')}><MapPin size={13} /><span>Legs</span></button>
+            <button className={`sub-tab${bannerTab === 'settings' ? ' is-active' : ''}`} type="button" onClick={() => setBannerTab('settings')}><Palette size={13} /><span>Settings</span></button>
+            <button className={`sub-tab${bannerTab === 'online' ? ' is-active' : ''}`} type="button" onClick={() => setBannerTab('online')}><Wifi size={13} /><span>Online</span></button>
           </div>
-
-          <div className="app-mode-tabs" role="tablist" aria-label="Generator mode">
-            <button
-              className={`app-mode-tab${appMode === 'banner' ? ' is-active' : ''}`}
-              type="button"
-              role="tab"
-              aria-selected={appMode === 'banner'}
-              onClick={() => setAppMode('banner')}
-            >
-              {badgeStrings.appTabBanner}
-            </button>
-            <button
-              className={`app-mode-tab${appMode === 'badge' ? ' is-active' : ''}`}
-              type="button"
-              role="tab"
-              aria-selected={appMode === 'badge'}
-              onClick={() => setAppMode('badge')}
-            >
-              {badgeStrings.appTabBadge}
-            </button>
+        ) : (
+          <div className="sub-tabs" role="tablist">
+            <button className={`sub-tab${badgeTab === 'elements' ? ' is-active' : ''}`} type="button" onClick={() => setBadgeTab('elements')}><LayoutGrid size={13} /><span>{locale === 'ru' ? 'Элементы' : 'Elements'}</span></button>
+            <button className={`sub-tab${badgeTab === 'icons' ? ' is-active' : ''}`} type="button" onClick={() => setBadgeTab('icons')}><Star size={13} /><span>{locale === 'ru' ? 'Иконки' : 'Icons'}</span></button>
+            <button className={`sub-tab${badgeTab === 'text' ? ' is-active' : ''}`} type="button" onClick={() => setBadgeTab('text')}><Type size={13} /><span>{locale === 'ru' ? 'Текст' : 'Text'}</span></button>
+            <button className={`sub-tab${badgeTab === 'colors' ? ' is-active' : ''}`} type="button" onClick={() => setBadgeTab('colors')}><Palette size={13} /><span>{locale === 'ru' ? 'Цвета' : 'Colors'}</span></button>
           </div>
+        )}
 
-          <h1>{isBadgeMode ? badgeStrings.appTitle : strings.appTitle}</h1>
-          <p>{isBadgeMode ? badgeStrings.appDescription : strings.appDescription}</p>
+        <div className="panel-tab-content">
 
-          <div className="project-switcher-wrap">
-            <span className="project-switcher-label">{strings.projectLabel}</span>
-
-            <div className="project-switcher" role="group" aria-label={strings.projectLabel}>
-              {brandOrder.map((brandOption) => {
-                const brandOptionInfo = brandDefinitions[brandOption]
-
-                return (
-                  <button
-                    key={brandOption}
-                    className={`project-button${brandKey === brandOption ? ' is-active' : ''}`}
-                    type="button"
-                    onClick={() => setBrandKey(brandOption)}
-                    aria-pressed={brandKey === brandOption}
-                  >
-                    <span className="project-button-title">{brandOptionInfo.fullName}</span>
-                    <span className="project-button-code">{brandOptionInfo.shortName}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {!isBadgeMode ? (
+          {!isBadgeMode && bannerTab === 'airline' ? (
+          <div className="tab-panel">
             <div className="project-switcher-wrap">
-              <span className="project-switcher-label">{strings.eventTypeLabel}</span>
-
-              <div className="project-switcher" role="group" aria-label={strings.eventTypeLabel}>
-                {eventOrder.map((eventOption) => {
-                  const eventOptionInfo = eventDefinitions[eventOption]
-
+              <span className="project-switcher-label">{strings.projectLabel}</span>
+              <div className="project-switcher" role="group" aria-label={strings.projectLabel}>
+                {brandOrder.map((brandOption) => {
+                  const brandOptionInfo = brandDefinitions[brandOption]
                   return (
-                    <button
-                      key={eventOption}
-                      className={`project-button${eventType === eventOption ? ' is-active' : ''}`}
-                      type="button"
-                      onClick={() => setEventType(eventOption)}
-                      aria-pressed={eventType === eventOption}
-                    >
-                      <span className="project-button-title">{getEventName(eventOption, strings)}</span>
-                      <span className="project-button-code">{eventOptionInfo.shortName}</span>
+                    <button key={brandOption} className={`project-button${brandKey === brandOption ? ' is-active' : ''}`} type="button" onClick={() => setBrandKey(brandOption)} aria-pressed={brandKey === brandOption}>
+                      <span className="project-button-title">{brandOptionInfo.fullName}</span>
+                      <span className="project-button-code">{brandOptionInfo.shortName}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
+          </div>
           ) : null}
-        </div>
 
-        {!isBadgeMode ? (
-        <section className="panel-card">
-          <h2>{strings.bannerSettingsTitle}</h2>
+          {!isBadgeMode && bannerTab === 'event' ? (
+          <div className="tab-panel">
 
-          {!isRouteEventActive && !isVatsimRegionEvent(eventType) ? (
-            <label className="toggle-field toggle-field-wide">
-              <input
-                type="checkbox"
-                checked={form.vatsimEvent}
-                onChange={(event) => updateField('vatsimEvent', event.target.checked)}
-              />
-              <span className="toggle-title">{strings.vatsimEventLabel}</span>
-              <span className="toggle-help">{strings.vatsimEventHelp}</span>
-            </label>
-          ) : null}
+            <div className="project-switcher-wrap">
+              <span className="project-switcher-label">{strings.eventTypeLabel}</span>
+              <div className="event-type-grid" role="group" aria-label={strings.eventTypeLabel}>
+                {eventOrder.map((eventOption) => (
+                  <button key={eventOption} className={`event-type-chip${eventType === eventOption ? ' is-active' : ''}`} type="button" onClick={() => setEventType(eventOption)} aria-pressed={eventType === eventOption}>
+                    {getEventIcon(eventOption)}
+                    <span>{getEventName(eventOption, strings)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          <section className="panel-card">
+
 
           {isVatsimRegionEvent(eventType) ? (
             <>
@@ -8601,6 +9818,62 @@ function App() {
 
               <p className="field-help">{strings.communityGoalHelp}</p>
             </>
+          ) : eventType === 'slotted' ? (
+            <>
+              <SettingsAccordionSection title={locale === 'ru' ? 'Название ивента' : 'Event Title'} defaultOpen>
+                <label className="field">
+                  <span>{locale === 'ru' ? 'Название' : 'Title'}</span>
+                  <input
+                    type="text"
+                    value={form.slottedTitle}
+                    onChange={(event) => updateField('slottedTitle', event.target.value)}
+                    placeholder={locale === 'ru' ? 'Slotted Flight Event' : 'Slotted Flight Event'}
+                  />
+                </label>
+              </SettingsAccordionSection>
+
+              <SettingsAccordionSection title={strings.bonusPointsLabel} defaultOpen>
+                <div className="settings-accordion-stack">
+                  <label className="field">
+                    <span>{strings.bonusPointsLabel}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.slottedBonusPoints}
+                      onChange={(event) => updateField('slottedBonusPoints', event.target.value)}
+                      placeholder="350"
+                    />
+                  </label>
+                  <div className="event-meta-grid">
+                    <label className="toggle-field">
+                      <input
+                        type="checkbox"
+                        checked={form.slottedRegistrationRequired}
+                        onChange={(event) => updateField('slottedRegistrationRequired', event.target.checked)}
+                      />
+                      <span className="toggle-title">{strings.registrationRequiredLabel}</span>
+                      <span className="toggle-help">{strings.registrationRequiredHelp}</span>
+                    </label>
+                  </div>
+                </div>
+              </SettingsAccordionSection>
+
+              <SettingsAccordionSection title={locale === 'ru' ? 'Сеть' : 'Network'} defaultOpen>
+                <div className="event-type-grid" role="group">
+                  {slottedNetworkOptions.map((net) => (
+                    <button
+                      key={net}
+                      type="button"
+                      className={`event-type-chip${form.slottedNetwork === net ? ' is-active' : ''}`}
+                      onClick={() => updateField('slottedNetwork', net)}
+                      aria-pressed={form.slottedNetwork === net}
+                    >
+                      <span>{net}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingsAccordionSection>
+            </>
           ) : isRouteEventActive && routeEventConfig ? (
             <>
               <SettingsAccordionSection title={routeEventConfig.titleLabel} defaultOpen>
@@ -8613,36 +9886,6 @@ function App() {
                     placeholder={routeEventConfig.titlePlaceholder}
                   />
                 </label>
-              </SettingsAccordionSection>
-
-              <SettingsAccordionSection title={strings.tourLegsLabel} defaultOpen>
-                <div className="field-group">
-                  <label className="field">
-                    <span>{strings.tourLegsLabel}</span>
-                    <textarea
-                      rows={5}
-                      value={form[routeEventConfig.legsField]}
-                      onChange={(event) => updateField(routeEventConfig.legsField, event.target.value)}
-                      placeholder={strings.tourLegsPlaceholder}
-                    />
-                  </label>
-                  <p className="field-help">{strings.tourLegsHelp}</p>
-                </div>
-              </SettingsAccordionSection>
-
-              <SettingsAccordionSection title={routeEventConfig.descriptionLabel} defaultOpen>
-                <div className="field-group">
-                  <label className="field tour-description-field">
-                    <span>{routeEventConfig.descriptionLabel}</span>
-                    <textarea
-                      rows={3}
-                      value={form[routeEventConfig.descriptionField]}
-                      onChange={(event) => updateField(routeEventConfig.descriptionField, event.target.value)}
-                      placeholder={routeEventConfig.descriptionPlaceholder}
-                    />
-                  </label>
-                  <p className="field-help">{routeEventConfig.descriptionHelp}</p>
-                </div>
               </SettingsAccordionSection>
 
               <SettingsAccordionSection title={strings.bonusPointsLabel} defaultOpen>
@@ -8659,16 +9902,6 @@ function App() {
                   </label>
 
                   <div className="event-meta-grid">
-                    <label className="toggle-field">
-                      <input
-                        type="checkbox"
-                        checked={form.vatsimEvent}
-                        onChange={(event) => updateField('vatsimEvent', event.target.checked)}
-                      />
-                      <span className="toggle-title">{strings.vatsimEventLabel}</span>
-                      <span className="toggle-help">{strings.vatsimEventHelp}</span>
-                    </label>
-
                     <label className="toggle-field">
                       <input
                         type="checkbox"
@@ -8858,7 +10091,7 @@ function App() {
                   type="text"
                   value={form.city}
                   onChange={(event) => handleCityChange(event.target.value)}
-                  placeholder="Saint Petersburg"
+                  placeholder={locale === 'ru' ? 'Санкт-Петербург или ULLI' : 'Saint Petersburg or ULLI'}
                 />
               </label>
 
@@ -8885,20 +10118,30 @@ function App() {
                 </div>
               ) : null}
 
-              <div className={`field-grid${eventType === 'focus-airport' ? ' field-grid-compact' : ''}`}>
-                <label className="field">
-                  <span>{strings.countryCodeLabel}</span>
-                  <input
-                    type="text"
-                    maxLength={2}
-                    value={form.countryCode ?? ''}
-                    onChange={(event) =>
-                      updateField('countryCode', event.target.value.replace(/[^a-z]/gi, '').toUpperCase())
-                    }
-                    placeholder="RU"
-                  />
-                </label>
-
+              {eventType === 'focus-airport' ? (
+                <div className="field-grid">
+                  <label className="field">
+                    <span>{strings.icaoLabel}</span>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={form.icao}
+                      onChange={(event) => handleIcaoChange(event.target.value)}
+                      placeholder="ULLI"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{strings.bonusPointsLabel}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.focusBonusPoints}
+                      onChange={(event) => updateField('focusBonusPoints', event.target.value)}
+                      placeholder="350"
+                    />
+                  </label>
+                </div>
+              ) : (
                 <label className="field">
                   <span>{strings.icaoLabel}</span>
                   <input
@@ -8909,20 +10152,7 @@ function App() {
                     placeholder="ULLI"
                   />
                 </label>
-
-                {eventType === 'focus-airport' ? (
-                  <label className="field">
-                    <span>{strings.bonusPointsLabel}</span>
-                    <input
-                      type="number"
-                      min="0"
-                        value={form.focusBonusPoints}
-                        onChange={(event) => updateField('focusBonusPoints', event.target.value)}
-                      placeholder="350"
-                    />
-                  </label>
-                ) : null}
-              </div>
+              )}
 
               <label className="field">
                 <span>{strings.airportNameLabel}</span>
@@ -8948,132 +10178,476 @@ function App() {
               </label>
             </>
           )}
-        </section>
-        ) : (
-        <section className="panel-card">
-          <h2>{badgeStrings.settingsTitle}</h2>
+          </section>
+          </div>
+          ) : null}
 
-          <SettingsAccordionSection title={badgeStrings.titleLabel} defaultOpen>
-            <label className="field">
-              <span>{badgeStrings.titleLabel}</span>
-              <input
-                type="text"
-                value={badgeForm.title}
-                onChange={(event) => updateBadgeField('title', event.target.value)}
-                placeholder="Participant"
-              />
-            </label>
+          {!isBadgeMode && bannerTab === 'legs' ? (
+          <div className="tab-panel">
+            {isRouteEventActive && routeEventConfig ? (
+            <section className="panel-card">
+              <SettingsAccordionSection title={strings.tourLegsLabel} defaultOpen>
+                <div className="field-group">
+                  <label className="field">
+                    <span>{strings.tourLegsLabel}</span>
+                    <textarea
+                      rows={5}
+                      value={form[routeEventConfig.legsField]}
+                      onChange={(event) => updateField(routeEventConfig.legsField, event.target.value)}
+                      placeholder={strings.tourLegsPlaceholder}
+                    />
+                  </label>
+                  <p className="field-help">{strings.tourLegsHelp}</p>
+                </div>
+              </SettingsAccordionSection>
 
-            <label className="field">
-              <span>{badgeStrings.subtitleLabel}</span>
-              <input
-                type="text"
-                value={badgeForm.subtitle}
-                onChange={(event) => updateBadgeField('subtitle', event.target.value)}
-                placeholder="Spring Event 2026"
-              />
-            </label>
+              <SettingsAccordionSection title={routeEventConfig.descriptionLabel} defaultOpen>
+                <div className="field-group">
+                  <label className="field tour-description-field">
+                    <span>{routeEventConfig.descriptionLabel}</span>
+                    <textarea
+                      rows={3}
+                      value={form[routeEventConfig.descriptionField]}
+                      onChange={(event) => updateField(routeEventConfig.descriptionField, event.target.value)}
+                      placeholder={routeEventConfig.descriptionPlaceholder}
+                    />
+                  </label>
+                  <p className="field-help">{routeEventConfig.descriptionHelp}</p>
+                </div>
+              </SettingsAccordionSection>
+            </section>
+            ) : (
+            <section className="panel-card tab-empty-state">
+              <MapPin size={28} />
+              <p>{locale === 'ru' ? 'Этот тип ивента не поддерживает маршруты' : 'This event type does not support legs'}</p>
+            </section>
+            )}
+          </div>
+          ) : null}
 
-            <label className="field">
-              <span>{badgeStrings.topLabel}</span>
-              <input
-                type="text"
-                value={badgeForm.topLabel}
-                onChange={(event) => updateBadgeField('topLabel', event.target.value)}
-                placeholder="EVENT"
-              />
-            </label>
-          </SettingsAccordionSection>
+          {!isBadgeMode && bannerTab === 'settings' ? (
+          <div className="tab-panel">
+            <section className="panel-card">
+              {eventType === 'community-challenge' ? (
+                <>
+                  <div className="support-card-section">
+                    <div className="support-card-heading">
+                      <h2>{strings.communityTeamsTitle}</h2>
+                      <p>{strings.communityTeamsHelp}</p>
+                    </div>
+                    {communityTeamsEditor}
+                  </div>
+                  <div className="support-card-divider"></div>
+                  <div className="support-card-section">
+                    <h3 className="support-card-subtitle">{strings.imagesTitle}</h3>
+                    {imageAndLogoControls}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2>{strings.imagesTitle}</h2>
+                  {imageAndLogoControls}
+                </>
+              )}
+            </section>
+          </div>
+          ) : null}
 
-          <SettingsAccordionSection title={badgeStrings.shapeLabel} defaultOpen>
-            <div className="badge-choice-grid" role="group" aria-label={badgeStrings.shapeLabel}>
-              {([
-                ['circle', badgeStrings.shapeCircle],
-                ['rounded-square', badgeStrings.shapeRoundedSquare],
-                ['shield', badgeStrings.shapeShield],
-              ] as Array<[BadgeShape, string]>).map(([shapeValue, shapeLabel]) => (
-                <button
-                  key={shapeValue}
-                  className={`mini-choice-card${badgeForm.shape === shapeValue ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateBadgeField('shape', shapeValue)}
-                  aria-pressed={badgeForm.shape === shapeValue}
-                >
-                  {shapeLabel}
+          {!isBadgeMode && bannerTab === 'online' ? (
+          <div className="tab-panel">
+            <section className="panel-card">
+              <label className="toggle-field toggle-field-wide">
+                <input
+                  type="checkbox"
+                  checked={form.vatsimEvent}
+                  onChange={(event) => updateField('vatsimEvent', event.target.checked)}
+                />
+                <span className="toggle-title">{strings.vatsimEventLabel}</span>
+                <span className="toggle-help">{strings.vatsimEventHelp}</span>
+              </label>
+              {isVatsimRegionEventActive ? (
+                <p className="field-help" style={{ marginTop: 8 }}>
+                  {locale === 'ru'
+                    ? 'Настройки регионов и координация доступны под превью.'
+                    : 'Region settings and coordination are available below the preview.'}
+                </p>
+              ) : null}
+            </section>
+          </div>
+          ) : null}
+
+
+          {/* ── Elements tab ── */}
+          {isBadgeMode && badgeTab === 'elements' ? (
+          <div className="tab-panel">
+          <section className="panel-card">
+
+          <SettingsAccordionSection title={locale === 'ru' ? 'Режим' : 'Mode'} defaultOpen>
+            <div className="settings-accordion-stack">
+              <div className="layout-visual-grid" role="group">
+                {/* Classic */}
+                <button className={`layout-visual-card${badgeForm.layout === 'classic' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('layout', 'classic')} aria-pressed={badgeForm.layout === 'classic'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="6" fill="currentColor" opacity=".12"/>
+                    <circle cx="24" cy="19" r="7" fill="currentColor" opacity=".7"/>
+                    <rect x="13" y="31" width="22" height="3.5" rx="1.75" fill="currentColor" opacity=".9"/>
+                    <rect x="17" y="37" width="14" height="2.5" rx="1.25" fill="currentColor" opacity=".5"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Классик' : 'Classic'}</span>
                 </button>
-              ))}
+                {/* Icon + Pill */}
+                <button className={`layout-visual-card${badgeForm.layout === 'pill' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('layout', 'pill')} aria-pressed={badgeForm.layout === 'pill'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="6" fill="currentColor" opacity=".12"/>
+                    <circle cx="24" cy="17" r="6" fill="currentColor" opacity=".7"/>
+                    <rect x="10" y="27" width="28" height="13" rx="6.5" fill="currentColor" opacity=".8"/>
+                    <rect x="15" y="30.5" width="18" height="2.5" rx="1.25" fill="white" opacity=".6"/>
+                    <rect x="17" y="35" width="14" height="2" rx="1" fill="white" opacity=".35"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Пилюля' : 'Icon+Pill'}</span>
+                </button>
+                {/* Country Flag */}
+                <button className={`layout-visual-card${badgeForm.layout === 'flag' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('layout', 'flag')} aria-pressed={badgeForm.layout === 'flag'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="6" fill="currentColor" opacity=".12"/>
+                    <rect x="6" y="6" width="36" height="12" rx="3" fill="currentColor" opacity=".5"/>
+                    <rect x="6" y="18" width="36" height="12" fill="currentColor" opacity=".15"/>
+                    <rect x="6" y="30" width="36" height="12" rx="3" fill="currentColor" opacity=".5"/>
+                    <rect x="13" y="21" width="22" height="2.5" rx="1.25" fill="currentColor" opacity=".7"/>
+                    <rect x="16" y="26" width="16" height="2" rx="1" fill="currentColor" opacity=".45"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Флаг' : 'Flag'}</span>
+                </button>
+              </div>
             </div>
           </SettingsAccordionSection>
 
-          <SettingsAccordionSection title={badgeStrings.frameLabel} defaultOpen>
-            <div className="badge-choice-grid" role="group" aria-label={badgeStrings.frameLabel}>
+          <SettingsAccordionSection title={locale === 'ru' ? 'Форма иконки' : 'Icon shape'} defaultOpen={badgeForm.layout !== 'flag'}>
+            <label className="toggle-field" style={{ marginBottom: 10 }}>
+              <input type="checkbox" checked={badgeForm.showIcon} onChange={(e) => updateBadgeField('showIcon', e.target.checked)} />
+              <span className="toggle-title">{locale === 'ru' ? 'Показывать значок' : 'Show icon'}</span>
+            </label>
+            <div className="badge-choice-grid" role="group">
               {([
-                ['ring', badgeStrings.frameRing],
-                ['hex', badgeStrings.frameHex],
-                ['ticket', badgeStrings.frameTicket],
-              ] as Array<[BadgeFrame, string]>).map(([frameValue, frameLabel]) => (
-                <button
-                  key={frameValue}
-                  className={`mini-choice-card${badgeForm.frame === frameValue ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateBadgeField('frame', frameValue)}
-                  aria-pressed={badgeForm.frame === frameValue}
-                >
-                  {frameLabel}
-                </button>
+                ['none', locale === 'ru' ? 'Без формы' : 'No shape'],
+                ['circle', locale === 'ru' ? 'Круг' : 'Circle'],
+                ['rounded-square', locale === 'ru' ? 'Квадрат' : 'Square'],
+                ['shield', locale === 'ru' ? 'Щит' : 'Shield'],
+                ['hexagon', locale === 'ru' ? 'Гексагон' : 'Hexagon'],
+              ] as Array<[BadgeInnerShape, string]>).map(([sv, sl]) => (
+                <button key={sv} className={`mini-choice-card${badgeForm.innerShape === sv ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('innerShape', sv)} aria-pressed={badgeForm.innerShape === sv}>{sl}</button>
               ))}
+            </div>
+            {badgeForm.innerShape !== 'none' ? (
+              <div className="settings-accordion-stack" style={{ marginTop: 10 }}>
+                <label className="field">
+                  <span>{locale === 'ru' ? 'Размер формы' : 'Shape size'}: {badgeForm.innerShapeSize}px</span>
+                  <input type="range" min={70} max={170} step={2} value={badgeForm.innerShapeSize} onChange={(e) => updateBadgeField('innerShapeSize', Number(e.target.value))} />
+                </label>
+                <div className="field-grid">
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Заливка' : 'Fill'}: {Math.round(badgeForm.innerShapeFillOpacity * 100)}%</span>
+                    <input type="range" min={0} max={0.6} step={0.02} value={badgeForm.innerShapeFillOpacity} onChange={(e) => updateBadgeField('innerShapeFillOpacity', Number(e.target.value))} />
+                  </label>
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Обводка' : 'Outline'}: {Math.round(badgeForm.innerShapeRingOpacity * 100)}%</span>
+                    <input type="range" min={0} max={1} step={0.02} value={badgeForm.innerShapeRingOpacity} onChange={(e) => updateBadgeField('innerShapeRingOpacity', Number(e.target.value))} />
+                  </label>
+                </div>
+                <label className="field">
+                  <span>{locale === 'ru' ? 'Цвет формы' : 'Shape color'}</span>
+                  <ColorField value={badgeForm.innerShapeColor} fallback={effectiveBadgePalette.accentColor} onChange={(v) => updateBadgeField('innerShapeColor', v)} />
+                </label>
+                <label className="toggle-field">
+                  <input type="checkbox" checked={badgeForm.innerShapeGlow} onChange={(e) => updateBadgeField('innerShapeGlow', e.target.checked)} />
+                  <span className="toggle-title">{locale === 'ru' ? 'Свечение' : 'Glow'}</span>
+                </label>
+              </div>
+            ) : null}
+          </SettingsAccordionSection>
+
+          {badgeForm.layout === 'flag' ? (
+          <SettingsAccordionSection title={locale === 'ru' ? 'Стиль флага' : 'Flag style'} defaultOpen>
+              <div className="layout-visual-grid" role="group">
+                {/* Full bg */}
+                <button className={`layout-visual-card${badgeForm.flagVariant === 'fullbg' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('flagVariant', 'fullbg')} aria-pressed={badgeForm.flagVariant === 'fullbg'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="5" fill="currentColor" opacity=".12"/>
+                    <rect x="6" y="6" width="36" height="12" rx="3" fill="currentColor" opacity=".55"/>
+                    <rect x="6" y="18" width="36" height="12" fill="white" opacity=".55"/>
+                    <rect x="6" y="30" width="36" height="12" rx="3" fill="currentColor" opacity=".55"/>
+                    <rect x="14" y="21" width="20" height="2.5" rx="1.25" fill="currentColor" opacity=".8"/>
+                    <rect x="17" y="26" width="14" height="2" rx="1" fill="currentColor" opacity=".45"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Полный фон' : 'Full bg'}</span>
+                </button>
+                {/* Corner */}
+                <button className={`layout-visual-card${badgeForm.flagVariant === 'corner' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('flagVariant', 'corner')} aria-pressed={badgeForm.flagVariant === 'corner'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="5" fill="currentColor" opacity=".1"/>
+                    <path d="M6 34 L20 6 H42 V42 H6 Z" fill="currentColor" opacity=".18"/>
+                    <line x1="6" y1="34" x2="20" y2="6" stroke="currentColor" strokeWidth="1.5" opacity=".4"/>
+                    <rect x="10" y="10" width="14" height="2.5" rx="1.25" fill="currentColor" opacity=".8"/>
+                    <rect x="10" y="15" width="10" height="2" rx="1" fill="currentColor" opacity=".5"/>
+                    <rect x="25" y="35" width="14" height="3" rx="1.5" fill="currentColor" opacity=".7"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Угол' : 'Corner'}</span>
+                </button>
+                {/* Ribbon */}
+                <button className={`layout-visual-card${badgeForm.flagVariant === 'ribbon' ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('flagVariant', 'ribbon')} aria-pressed={badgeForm.flagVariant === 'ribbon'}>
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="layout-visual-svg">
+                    <rect x="6" y="6" width="36" height="36" rx="5" fill="currentColor" opacity=".1"/>
+                    <path d="M26 42 L42 26 L42 36 L36 42 Z" fill="currentColor" opacity=".55"/>
+                    <path d="M20 42 L42 20 L42 26 L26 42 Z" fill="white" opacity=".55"/>
+                    <path d="M14 42 L42 14 L42 20 L20 42 Z" fill="currentColor" opacity=".55"/>
+                    <rect x="10" y="10" width="18" height="2.5" rx="1.25" fill="currentColor" opacity=".8"/>
+                    <rect x="10" y="15" width="12" height="2" rx="1" fill="currentColor" opacity=".5"/>
+                  </svg>
+                  <span>{locale === 'ru' ? 'Лента' : 'Ribbon'}</span>
+                </button>
+              </div>
+              {badgeForm.flagVariant === 'fullbg' ? (
+                <div className="field-grid" style={{ marginTop: 10 }}>
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Затемнение' : 'Gradient opacity'}: {Math.round(badgeForm.flagGradOpacity * 100)}%</span>
+                    <input type="range" min={0} max={1} step={0.02} value={badgeForm.flagGradOpacity} onChange={(e) => updateBadgeField('flagGradOpacity', Number(e.target.value))} />
+                  </label>
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Высота градиента' : 'Gradient height'}: {badgeForm.flagGradHeight}%</span>
+                    <input type="range" min={20} max={100} step={2} value={badgeForm.flagGradHeight} onChange={(e) => updateBadgeField('flagGradHeight', Number(e.target.value))} />
+                  </label>
+                </div>
+              ) : null}
+          </SettingsAccordionSection>
+          ) : null}
+
+          <SettingsAccordionSection title={locale === 'ru' ? 'Хаб' : 'Hub'}>
+            <div className="settings-accordion-stack">
+              <label className="toggle-field">
+                <input type="checkbox" checked={badgeForm.showHub} onChange={(e) => updateBadgeField('showHub', e.target.checked)} />
+                <span className="toggle-title">{locale === 'ru' ? 'Показать хаб' : 'Show hub'}</span>
+              </label>
+              {badgeForm.showHub ? (
+                <>
+                  <div className="badge-hub-icao-row">
+                    <label className="field" style={{ flex: 1 }}>
+                      <span>{locale === 'ru' ? 'ИКАО код аэропорта' : 'Airport ICAO'}</span>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="UUWW"
+                        value={badgeForm.hubIcao}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                          updateBadgeField('hubIcao', val)
+                          const detected = getCountryFromIcao(val)
+                          if (detected) {
+                            updateBadgeField('hubCountry', detected)
+                            updateBadgeField('flagCountry', detected)
+                            updateBadgeField('flagData', '')
+                          }
+                        }}
+                        style={{ fontFamily: 'var(--display-font)', letterSpacing: '0.1em' }}
+                      />
+                    </label>
+                    {badgeForm.hubCountry ? (
+                      <div className="badge-hub-flag-preview">
+                        <span className={`fi fi-${badgeForm.hubCountry}`} style={{ width: 28, height: 20, display: 'block', borderRadius: 3 }} />
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-soft)', marginTop: 2 }}>{badgeForm.hubCountry.toUpperCase()}</span>
+                        <button type="button" className="badge-hub-flag-clear" onClick={() => updateBadgeField('hubCountry', '')} title={locale === 'ru' ? 'Сбросить флаг' : 'Clear flag'}>×</button>
+                      </div>
+                    ) : badgeForm.hubIcao.length >= 2 ? (
+                      <div className="badge-hub-flag-preview badge-hub-flag-unknown">
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-soft)', textAlign: 'center', lineHeight: 1.2 }}>{locale === 'ru' ? 'Не найден' : 'Unknown'}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  {!badgeForm.hubCountry && badgeForm.hubIcao.length >= 2 ? (
+                    <div className="field">
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-soft)' }}>{locale === 'ru' ? 'Флаг страны (вручную)' : 'Country flag (manual)'}</span>
+                      <div className="badge-flag-country-grid" style={{ maxHeight: 140 }}>
+                        {allFlagCountries.map(({ code: cc }) => (
+                          <button key={cc} type="button" className={`badge-flag-country-btn${badgeForm.hubCountry === cc ? ' is-active' : ''}`} onClick={() => updateBadgeField('hubCountry', cc)} title={cc.toUpperCase()}>
+                            <div className="badge-flag-country-flag"><span className={`fi fi-${cc}`} aria-hidden="true" /></div>
+                            <span className="badge-flag-country-label">{cc.toUpperCase()}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="field">
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-soft)' }}>{locale === 'ru' ? 'Позиция' : 'Position'}</span>
+                    <div className="badge-choice-grid" role="group">
+                      {([
+                        ['bottom-left', locale === 'ru' ? 'Лево' : 'Left'],
+                        ['bottom-center', locale === 'ru' ? 'Центр' : 'Center'],
+                        ['bottom-right', locale === 'ru' ? 'Право' : 'Right'],
+                      ] as Array<[BadgeFormState['hubPosition'], string]>).map(([pos, label]) => (
+                        <button key={pos} className={`mini-choice-card${badgeForm.hubPosition === pos ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('hubPosition', pos)} aria-pressed={badgeForm.hubPosition === pos}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="toggle-field">
+                    <input type="checkbox" checked={badgeForm.hubStyle === 'chip'} onChange={(e) => updateBadgeField('hubStyle', e.target.checked ? 'chip' : 'plain')} />
+                    <span className="toggle-title">{locale === 'ru' ? 'Фон хаба' : 'Hub Background'}</span>
+                  </label>
+                </>
+              ) : null}
             </div>
           </SettingsAccordionSection>
 
-          <SettingsAccordionSection title={badgeStrings.layerStyleLabel} defaultOpen>
-            <div className="badge-choice-grid" role="group" aria-label={badgeStrings.layerStyleLabel}>
-              {([
-                ['orbital', badgeStrings.layerStyleOrbital],
-                ['winged', badgeStrings.layerStyleWinged],
-                ['crest', badgeStrings.layerStyleCrest],
-              ] as Array<[BadgeLayerStyle, string]>).map(([layerValue, layerLabel]) => (
-                <button
-                  key={layerValue}
-                  className={`mini-choice-card${badgeForm.layerStyle === layerValue ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateBadgeField('layerStyle', layerValue)}
-                  aria-pressed={badgeForm.layerStyle === layerValue}
-                >
-                  {layerLabel}
-                </button>
-              ))}
-            </div>
-          </SettingsAccordionSection>
+          </section>
+          </div>
+          ) : null}
+
+          {/* ── Icons tab ── */}
+          {isBadgeMode && badgeTab === 'icons' ? (
+          <div className="tab-panel">
+          <section className="panel-card">
 
           <SettingsAccordionSection title={badgeStrings.iconLabel} defaultOpen>
-            <div className="badge-icon-grid" role="group" aria-label={badgeStrings.iconLabel}>
-              {([
-                ['medal', badgeStrings.iconMedal],
-                ['aircraft', badgeStrings.iconAircraft],
-                ['jet', badgeStrings.iconJet],
-                ['airliner', badgeStrings.iconAirliner],
-                ['prop', badgeStrings.iconProp],
-                ['helicopter', badgeStrings.iconHelicopter],
-                ['route', badgeStrings.iconRoute],
-                ['globe', badgeStrings.iconGlobe],
-                ['star', badgeStrings.iconStar],
-                ['laurel', badgeStrings.iconLaurel],
-                ['crown', badgeStrings.iconCrown],
-                ['vatsim', badgeStrings.iconVatsim],
-              ] as Array<[BadgeIcon, string]>).map(([iconValue, iconLabel]) => (
-                <button
-                  key={iconValue}
-                  className={`badge-icon-button${badgeForm.icon === iconValue ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateBadgeField('icon', iconValue)}
-                  aria-pressed={badgeForm.icon === iconValue}
-                >
-                  <span className="badge-icon-button-glyph">{renderBadgeIcon(iconValue)}</span>
-                  <span>{iconLabel}</span>
-                </button>
-              ))}
+            <div className="settings-accordion-stack">
+              {badgeForm.customIcon ? (
+                <div className="badge-photo-preview-row">
+                  <div className="badge-photo-thumb" style={{ backgroundImage: `url(${badgeForm.customIcon})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                  <div className="settings-accordion-stack" style={{ flex: 1, gap: 6 }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-soft)' }}>{locale === 'ru' ? 'Своя иконка загружена' : 'Custom icon loaded'}</span>
+                    <button className="mini-choice-card" type="button" onClick={() => updateBadgeField('customIcon', '')}>{locale === 'ru' ? 'Удалить' : 'Remove'}</button>
+                  </div>
+                </div>
+              ) : (
+                <label className="badge-photo-upload-label">
+                  <span>{locale === 'ru' ? 'Загрузить свою иконку (PNG / SVG)' : 'Upload custom icon (PNG / SVG)'}</span>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = (ev) => updateBadgeField('customIcon', ev.target?.result as string)
+                    reader.readAsDataURL(file)
+                  }} />
+                </label>
+              )}
+              {!badgeForm.customIcon ? (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', margin: 0 }}>
+                  {locale === 'ru' ? 'Выбери иконку из библиотеки под превью' : 'Pick an icon from the library below the preview'}
+                </p>
+              ) : null}
             </div>
           </SettingsAccordionSection>
+
+          <SettingsAccordionSection title={locale === 'ru' ? 'Настройки иконки' : 'Icon style'} defaultOpen>
+            <div className="settings-accordion-stack">
+              <label className="toggle-field">
+                <input type="checkbox" checked={badgeForm.showIcon} onChange={(e) => updateBadgeField('showIcon', e.target.checked)} />
+                <span className="toggle-title">{locale === 'ru' ? 'Показывать значок' : 'Show icon'}</span>
+              </label>
+              <label className="toggle-field">
+                <input type="checkbox" checked={badgeForm.iconBg} disabled={!badgeForm.showIcon} onChange={(e) => updateBadgeField('iconBg', e.target.checked)} />
+                <span className="toggle-title">{locale === 'ru' ? 'Фон значка' : 'Icon background'}</span>
+              </label>
+              {badgeForm.iconBg ? (
+                <div className="field-grid">
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Скругление' : 'Radius'}: {badgeForm.iconBgRadius}px</span>
+                    <input type="range" min={0} max={50} step={1} value={badgeForm.iconBgRadius} onChange={(e) => updateBadgeField('iconBgRadius', Number(e.target.value))} />
+                  </label>
+                  <label className="field">
+                    <span>{locale === 'ru' ? 'Прозрачность фона' : 'Bg opacity'}: {Math.round(badgeForm.iconBgOpacity * 100)}%</span>
+                    <input type="range" min={0} max={1} step={0.02} value={badgeForm.iconBgOpacity} onChange={(e) => updateBadgeField('iconBgOpacity', Number(e.target.value))} />
+                  </label>
+                </div>
+              ) : null}
+              <label className="field">
+                <span>{locale === 'ru' ? 'Размер иконки' : 'Icon size'}: {badgeForm.iconSize}px</span>
+                <input type="range" min={24} max={100} step={2} value={badgeForm.iconSize} onChange={(e) => updateBadgeField('iconSize', Number(e.target.value))} />
+              </label>
+              <label className="field">
+                <span>{locale === 'ru' ? 'Яркость значка' : 'Icon opacity'}: {Math.round(badgeForm.iconOpacity * 100)}%</span>
+                <input type="range" min={0.2} max={1} step={0.02} value={badgeForm.iconOpacity} onChange={(e) => updateBadgeField('iconOpacity', Number(e.target.value))} />
+              </label>
+              <label className="field">
+                <span>{locale === 'ru' ? 'Цвет значка' : 'Icon color'}</span>
+                <ColorField value={badgeForm.iconColor} fallback={effectiveBadgePalette.accentColor} onChange={(v) => updateBadgeField('iconColor', v)} />
+              </label>
+              <button
+                className="mini-choice-card"
+                type="button"
+                onClick={() => {
+                  updateBadgeField('showIcon', true)
+                  updateBadgeField('iconBg', true)
+                  updateBadgeField('iconBgRadius', 22)
+                  updateBadgeField('iconBgOpacity', 0.22)
+                  updateBadgeField('iconSize', 66)
+                  updateBadgeField('iconColor', '')
+                  updateBadgeField('iconOpacity', 1)
+                }}
+              >
+                {locale === 'ru' ? 'Сбросить к дефолту' : 'Reset to default'}
+              </button>
+            </div>
+          </SettingsAccordionSection>
+
+          </section>
+          </div>
+          ) : null}
+
+          {/* ── Text tab ── */}
+          {isBadgeMode && badgeTab === 'text' ? (
+          <div className="tab-panel">
+          <section className="panel-card">
+
+          <SettingsAccordionSection title={locale === 'ru' ? 'Содержимое' : 'Content'} defaultOpen>
+            <div className="badge-bottom-toggle-row">
+              <label className="field badge-bottom-toggle-field">
+                <span>{badgeStrings.titleLabel}</span>
+                <input type="text" value={badgeForm.title} onChange={(event) => updateBadgeField('title', event.target.value)} placeholder="Participant" disabled={!badgeForm.showTitle} />
+              </label>
+              <button
+                className={`badge-bottom-visibility-btn${badgeForm.showTitle ? ' is-on' : ''}`}
+                type="button"
+                title={badgeForm.showTitle ? (locale === 'ru' ? 'Скрыть' : 'Hide') : (locale === 'ru' ? 'Показать' : 'Show')}
+                onClick={() => updateBadgeField('showTitle', !badgeForm.showTitle)}
+              >
+                {badgeForm.showTitle ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+            </div>
+            <div className="badge-bottom-toggle-row">
+              <label className="field badge-bottom-toggle-field">
+                <span>{badgeStrings.subtitleLabel}</span>
+                <input type="text" value={badgeForm.subtitle} onChange={(event) => updateBadgeField('subtitle', event.target.value)} placeholder="Spring Event 2026" disabled={!badgeForm.showSubtitle} />
+              </label>
+              <button
+                className={`badge-bottom-visibility-btn${badgeForm.showSubtitle ? ' is-on' : ''}`}
+                type="button"
+                title={badgeForm.showSubtitle ? (locale === 'ru' ? 'Скрыть' : 'Hide') : (locale === 'ru' ? 'Показать' : 'Show')}
+                onClick={() => updateBadgeField('showSubtitle', !badgeForm.showSubtitle)}
+              >
+                {badgeForm.showSubtitle ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+            </div>
+            <div className="badge-bottom-toggle-row">
+              <label className="field badge-bottom-toggle-field">
+                <span>{badgeStrings.topLabel}</span>
+                <input type="text" value={badgeForm.topLabel} onChange={(event) => updateBadgeField('topLabel', event.target.value)} placeholder="EVENT" disabled={!badgeForm.showTopLabel} />
+              </label>
+              <button
+                className={`badge-bottom-visibility-btn${badgeForm.showTopLabel ? ' is-on' : ''}`}
+                type="button"
+                title={badgeForm.showTopLabel ? (locale === 'ru' ? 'Скрыть' : 'Hide') : (locale === 'ru' ? 'Показать' : 'Show')}
+                onClick={() => updateBadgeField('showTopLabel', !badgeForm.showTopLabel)}
+              >
+                {badgeForm.showTopLabel ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+            </div>
+          </SettingsAccordionSection>
+
+          </section>
+          </div>
+          ) : null}
+
+          {isBadgeMode && badgeTab === 'colors' ? (
+          <div className="tab-panel">
+          <section className="panel-card">
 
           <SettingsAccordionSection title={badgeStrings.paletteLabel} defaultOpen>
             <div className="settings-accordion-stack">
@@ -9102,15 +10676,15 @@ function App() {
                 <div className="field-grid">
                   <label className="field">
                     <span>{badgeStrings.bgColorLabel}</span>
-                    <input type="color" value={badgeForm.backgroundColor} onChange={(event) => updateBadgeField('backgroundColor', event.target.value)} />
+                    <ColorField value={badgeForm.backgroundColor} onChange={(v) => updateBadgeField('backgroundColor', v || '#11161d')} />
                   </label>
                   <label className="field">
                     <span>{badgeStrings.accentColorLabel}</span>
-                    <input type="color" value={badgeForm.accentColor} onChange={(event) => updateBadgeField('accentColor', event.target.value)} />
+                    <ColorField value={badgeForm.accentColor} onChange={(v) => updateBadgeField('accentColor', v || '#d6181e')} />
                   </label>
                   <label className="field">
                     <span>{badgeStrings.textColorLabel}</span>
-                    <input type="color" value={badgeForm.textColor} onChange={(event) => updateBadgeField('textColor', event.target.value)} />
+                    <ColorField value={badgeForm.textColor} onChange={(v) => updateBadgeField('textColor', v || '#f4f7fb')} />
                   </label>
                 </div>
               ) : (
@@ -9122,8 +10696,72 @@ function App() {
               )}
             </div>
           </SettingsAccordionSection>
-        </section>
-        )}
+
+          {badgeForm.layout === 'pill' ? (
+          <SettingsAccordionSection title={locale === 'ru' ? 'Цвета пилюли' : 'Pill Colors'} defaultOpen>
+            <div className="field-grid">
+              <label className="field">
+                <span>{locale === 'ru' ? 'Фон пилюли' : 'Pill background'}</span>
+                <ColorField value={badgeForm.pillColor} fallback={effectiveBadgePalette.accentColor} onChange={(v) => updateBadgeField('pillColor', v)} />
+              </label>
+              <label className="field">
+                <span>{locale === 'ru' ? 'Текст пилюли' : 'Pill text'}</span>
+                <ColorField value={badgeForm.pillTextColor} fallback={effectiveBadgePalette.backgroundColor} onChange={(v) => updateBadgeField('pillTextColor', v)} />
+              </label>
+            </div>
+          </SettingsAccordionSection>
+          ) : null}
+
+          <SettingsAccordionSection title={badgeStrings.gradientLabel} defaultOpen>
+            <div className="settings-accordion-stack">
+              <div className="badge-choice-grid" role="group" aria-label={badgeStrings.gradientLabel}>
+                {([
+                  ['solid', badgeStrings.gradientSolid],
+                  ['diagonal', badgeStrings.gradientDiagonal],
+                  ['vertical', badgeStrings.gradientVertical],
+                  ['radial', badgeStrings.gradientRadial],
+                ] as Array<[BadgeGradientStyle, string]>).map(([gStyle, gLabel]) => (
+                  <button
+                    key={gStyle}
+                    className={`mini-choice-card${badgeForm.bgGradientStyle === gStyle ? ' is-active' : ''}`}
+                    type="button"
+                    onClick={() => updateBadgeField('bgGradientStyle', gStyle)}
+                    aria-pressed={badgeForm.bgGradientStyle === gStyle}
+                  >
+                    {gLabel}
+                  </button>
+                ))}
+              </div>
+              <div className="field-grid">
+                <label className="field">
+                  <span>{badgeStrings.bgColor2Label}</span>
+                  <ColorField value={badgeForm.bgColor2} onChange={(v) => updateBadgeField('bgColor2', v || '#1e0505')} />
+                </label>
+                {badgeForm.bgGradientStyle === 'diagonal' ? (
+                  <label className="field">
+                    <span>{badgeStrings.gradientAngleLabel}: {badgeForm.bgGradientAngle}°</span>
+                    <input
+                      type="range" min={0} max={360} step={5}
+                      value={badgeForm.bgGradientAngle}
+                      onChange={(e) => updateBadgeField('bgGradientAngle', Number(e.target.value))}
+                    />
+                  </label>
+                ) : null}
+              </div>
+              <div
+                className="badge-gradient-preview"
+                style={{ background: badgeBaseBackground }}
+              />
+            </div>
+          </SettingsAccordionSection>
+
+
+          </section>
+          </div>
+          ) : null}
+
+
+        </div>
 
       </aside>
 
@@ -9133,7 +10771,17 @@ function App() {
             <span className="preview-label">{strings.previewLabel}</span>
             <h2>{previewTitleText}</h2>
           </div>
-          <span className="resolution-chip">{previewResolutionChip}</span>
+          <div className="preview-header-right">
+            <span className="resolution-chip">{previewResolutionChip}</span>
+            <button
+              className="preview-export-btn"
+              type="button"
+              onClick={() => setIsExportOpen(true)}
+              aria-label={strings.exportPngButton}
+            >
+              <Download size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="preview-frame">
@@ -9141,46 +10789,217 @@ function App() {
             <div
               className="banner-preview-stage"
               style={{
-                width: `${previewBaseWidth * previewScale}px`,
-                height: `${previewBaseHeight * previewScale}px`,
+                width: `${previewDisplayWidth * previewScale}px`,
+                height: `${previewDisplayHeight * previewScale}px`,
               }}
             >
               <div
                 className="banner-preview-scale"
                 style={{
-                  transform: `scale(${previewScale})`,
+                  transform: `scale(${previewScale * previewDisplayWidth / previewBaseWidth})`,
                 }}
               >
                 {isBadgeMode ? (
                   <div
                     ref={previewRef}
-                    className={`badge-preview is-${badgeForm.shape} has-${badgeForm.frame}-frame is-${badgeForm.layerStyle}`}
+                    className={`badge-preview layout-${badgeForm.layout}`}
                     style={
                       {
                         '--badge-bg': effectiveBadgePalette.backgroundColor,
                         '--badge-accent': effectiveBadgePalette.accentColor,
                         '--badge-text': effectiveBadgePalette.textColor,
+                        '--badge-base-bg': badgeBaseBackground,
+                        '--badge-pill-bg': badgeForm.pillColor || effectiveBadgePalette.accentColor,
+                        '--badge-pill-text': badgeForm.pillTextColor || effectiveBadgePalette.backgroundColor,
+                        '--badge-icon-size': `${badgeForm.iconSize}px`,
+                        '--badge-icon-radius': `${badgeForm.iconBgRadius}px`,
+                        '--badge-inner-size': `${badgeForm.innerShapeSize}px`,
+                        '--badge-inner-color': badgeForm.innerShapeColor || effectiveBadgePalette.accentColor,
+                        '--badge-inner-fill-pct': `${Math.round(badgeForm.innerShapeFillOpacity * 100)}%`,
+                        '--badge-inner-ring-pct': `${Math.round(badgeForm.innerShapeRingOpacity * 100)}%`,
+                        '--badge-inner-glow-opacity': badgeForm.innerShapeGlow ? 1 : 0,
+                        '--badge-icon-bg-opacity': badgeForm.iconBg ? badgeForm.iconBgOpacity : 0,
+                        '--badge-flag-grad-opacity': badgeForm.flagGradOpacity,
+                        ...(badgeForm.iconColor ? { '--badge-icon-color': badgeForm.iconColor } : {}),
+                        '--badge-icon-opacity': badgeForm.iconOpacity,
+                        '--badge-flag-grad-end': `${badgeForm.flagGradHeight}%`,
+                        '--badge-icon-ring-opacity': badgeForm.iconBg ? 0.4 : 0,
+                        ...(badgeForm.topLabelFont !== 'inherit' ? { '--badge-top-font': badgeForm.topLabelFont } : {}),
+                        ...(badgeForm.topLabelSize > 0 ? { '--badge-top-size': `${badgeForm.topLabelSize}px` } : {}),
+                        ...(badgeForm.topLabelColor ? { '--badge-top-color': badgeForm.topLabelColor } : {}),
+                        '--badge-top-shift': `${badgeForm.topLabelShiftX}px ${badgeForm.topLabelShiftY}px`,
+                        ...(badgeForm.titleFont !== 'inherit' ? { '--badge-title-font': badgeForm.titleFont } : {}),
+                        ...(badgeForm.titleSize > 0 ? { '--badge-title-size': `${badgeForm.titleSize}px` } : {}),
+                        ...(badgeForm.titleColor ? { '--badge-title-color': badgeForm.titleColor } : {}),
+                        '--badge-title-shift': `${badgeForm.titleShiftX}px ${badgeForm.titleShiftY}px`,
+                        ...(badgeForm.subtitleFont !== 'inherit' ? { '--badge-sub-font': badgeForm.subtitleFont } : {}),
+                        ...(badgeForm.subtitleSize > 0 ? { '--badge-sub-size': `${badgeForm.subtitleSize}px` } : {}),
+                        ...(badgeForm.subtitleColor ? { '--badge-sub-color': badgeForm.subtitleColor } : {}),
+                        '--badge-sub-shift': `${badgeForm.subtitleShiftX}px ${badgeForm.subtitleShiftY}px`,
+                        fontFamily: badgeForm.fontFamily === 'inherit' ? undefined : badgeForm.fontFamily,
                       } as React.CSSProperties
                     }
                   >
-                    <div className="badge-preview-core">
-                      <div className="badge-preview-topline">{badgeForm.topLabel.trim() || 'EVENT'}</div>
-                      <div className="badge-preview-frame-layer" aria-hidden="true"></div>
-                      <div className="badge-preview-ring"></div>
-                      <div className="badge-preview-glow"></div>
-                      <div className="badge-preview-ornament badge-preview-ornament-left" aria-hidden="true"></div>
-                      <div className="badge-preview-ornament badge-preview-ornament-right" aria-hidden="true"></div>
-                      <div className="badge-preview-gridline badge-preview-gridline-horizontal" aria-hidden="true"></div>
-                      <div className="badge-preview-gridline badge-preview-gridline-vertical" aria-hidden="true"></div>
-                      <div className="badge-preview-icon">{renderBadgeIcon(badgeForm.icon)}</div>
-                      <div className="badge-preview-copy">
-                        <strong>{badgeForm.title.trim() || 'Participant'}</strong>
-                        {badgeForm.subtitle.trim() ? <span>{badgeForm.subtitle.trim()}</span> : null}
+                    {badgeForm.flagData && badgeForm.layout !== 'flag' ? (
+                      <div
+                        className={`badge-flag-layer flag-effect-${badgeForm.flagEffect}`}
+                        style={{
+                          backgroundImage: `url(${badgeForm.flagData})`,
+                          opacity: badgeForm.flagOpacity,
+                          mixBlendMode: badgeForm.flagBlend as React.CSSProperties['mixBlendMode'],
+                        }}
+                      />
+                    ) : null}
+                    {badgeForm.badgePhoto ? (
+                      <div
+                        className="badge-preview-photo"
+                        style={{
+                          backgroundImage: `url(${badgeForm.badgePhoto})`,
+                          opacity: badgeForm.photoOpacity,
+                          mixBlendMode: badgeForm.photoBlend as React.CSSProperties['mixBlendMode'],
+                        }}
+                      />
+                    ) : null}
+
+                    {badgeForm.layout === 'flag' ? (
+                      badgeForm.flagVariant === 'ribbon' ? (
+                      <>
+                        <div className="badge-flag-ribbon" aria-hidden="true">
+                          <div className="badge-flag-ribbon-img" style={badgeForm.flagData || badgeForm.flagCountry ? { backgroundImage: `url(${badgeForm.flagData || `https://flagcdn.com/${badgeForm.flagCountry}.svg`})` } : undefined} />
+                        </div>
+                        <div className="badge-flag-ribbon-copy">
+                          {badgeForm.showTopLabel ? <em className="badge-flag-ribbon-toplabel">{badgeForm.topLabel.trim() || 'EVENT'}</em> : null}
+                          {badgeForm.showTitle ? <strong>{badgeForm.title.trim() || 'Participant'}</strong> : null}
+                          {badgeForm.showSubtitle && badgeForm.subtitle.trim() ? <span>{badgeForm.subtitle.trim()}</span> : null}
+                        </div>
+                      </>
+                      ) : badgeForm.flagVariant === 'corner' ? (
+                      <>
+                        {/* Corner variant: clipped flag stripe in bottom-right */}
+                        {badgeForm.flagData ? (
+                          <div
+                            className="badge-flag-corner-bg"
+                            style={{ backgroundImage: `url(${badgeForm.flagData})` }}
+                            aria-hidden="true"
+                          />
+                        ) : badgeForm.flagCountry ? (
+                          <div className="badge-flag-corner-bg" style={{ backgroundImage: `url(${badgeForm.flagData || `https://flagcdn.com/${badgeForm.flagCountry}.svg`})` }} aria-hidden="true" />
+                        ) : (
+                          <div className="badge-flag-corner-bg badge-flag-placeholder" aria-hidden="true" />
+                        )}
+                        <div className="badge-flag-corner-edge" aria-hidden="true" />
+                        {badgeForm.showTopLabel ? (
+                          <div className="badge-flag-corner-toplabel">{badgeForm.topLabel.trim() || 'EVENT'}</div>
+                        ) : null}
+                        {badgeForm.showTitle ? <div className="badge-flag-corner-title">{badgeForm.title.trim() || 'Event'}</div> : null}
+                        {badgeForm.showSubtitle ? <div className="badge-flag-corner-subtitle">{badgeForm.subtitle.trim() || '2026'}</div> : null}
+                      </>
+                      ) : (
+                      <>
+                        {/* Full-bleed flag background */}
+                        {badgeForm.flagData ? (
+                          <div
+                            className="badge-flag-fullbg"
+                            style={{ backgroundImage: `url(${badgeForm.flagData})` }}
+                            aria-hidden="true"
+                          />
+                        ) : badgeForm.flagCountry ? (
+                          <div className="badge-flag-fullbg" style={{ backgroundImage: `url(${badgeForm.flagData || `https://flagcdn.com/${badgeForm.flagCountry}.svg`})`, backgroundSize: 'cover', backgroundPosition: 'center' }} aria-hidden="true" />
+                        ) : (
+                          <div className="badge-flag-fullbg badge-flag-placeholder" aria-hidden="true" />
+                        )}
+                        {/* Dark→transparent gradient overlay */}
+                        <div className="badge-flag-dark-gradient" aria-hidden="true" />
+                        {/* Top label */}
+                        {badgeForm.showTopLabel ? <div className="badge-preview-topline">{badgeForm.topLabel.trim() || 'EVENT'}</div> : null}
+                        {/* Icon (upper area) */}
+                        {badgeForm.showIcon ? (
+                          <div className="badge-flag-icon-wrap">
+                            {badgeForm.innerShape !== 'none' ? (
+                              <div className={`badge-inner-shape-wrap is-${badgeForm.innerShape}`}>
+                                <div className="badge-inner-shape-glow" aria-hidden="true" />
+                                <div className="badge-inner-shape-ring" aria-hidden="true" />
+                                <div className="badge-preview-icon badge-icon-large">
+                                  {badgeForm.customIcon
+                                    ? <img src={badgeForm.customIcon} alt="" className="badge-custom-icon-img" />
+                                    : renderBadgeIcon(badgeForm.icon)}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="badge-preview-icon">
+                                {badgeForm.customIcon
+                                  ? <img src={badgeForm.customIcon} alt="" className="badge-custom-icon-img" />
+                                  : renderBadgeIcon(badgeForm.icon)}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        {/* Title at bottom over flag */}
+                        <div className="badge-flag-copy">
+                          {badgeForm.showTitle ? <strong>{badgeForm.title.trim() || 'Participant'}</strong> : null}
+                          {badgeForm.showSubtitle && badgeForm.subtitle.trim() ? <span>{badgeForm.subtitle.trim()}</span> : null}
+                        </div>
+                      </>
+                      )
+                    ) : badgeForm.layout === 'pill' ? (
+                      <>
+                        {badgeForm.showIcon ? (
+                          <div className={`badge-inner-shape-wrap is-${badgeForm.innerShape}`}>
+                            <div className="badge-inner-shape-glow" aria-hidden="true" />
+                            <div className="badge-inner-shape-ring" aria-hidden="true" />
+                            <div className="badge-preview-icon badge-icon-large">
+                              {badgeForm.customIcon
+                                ? <img src={badgeForm.customIcon} alt="" className="badge-custom-icon-img" />
+                                : renderBadgeIcon(badgeForm.icon)}
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="badge-pill-label">
+                          {badgeForm.showTopLabel ? <span>{badgeForm.topLabel.trim() || 'EVENT'}</span> : null}
+                          {badgeForm.showTitle ? <strong>{badgeForm.title.trim() || 'Participant'}</strong> : null}
+                          {badgeForm.showSubtitle && badgeForm.subtitle.trim() ? <em>{badgeForm.subtitle.trim()}</em> : null}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="badge-preview-core">
+                        {badgeForm.showTopLabel ? <div className="badge-preview-topline">{badgeForm.topLabel.trim() || 'EVENT'}</div> : null}
+                        {badgeForm.showIcon ? (badgeForm.innerShape !== 'none' ? (
+                          <div className={`badge-inner-shape-wrap is-${badgeForm.innerShape}`}>
+                            <div className="badge-inner-shape-glow" aria-hidden="true" />
+                            <div className="badge-inner-shape-ring" aria-hidden="true" />
+                            <div className="badge-preview-icon badge-icon-large">
+                              {badgeForm.customIcon
+                                ? <img src={badgeForm.customIcon} alt="" className="badge-custom-icon-img" />
+                                : renderBadgeIcon(badgeForm.icon)}
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="badge-preview-ring" aria-hidden="true" />
+                            <div className="badge-preview-glow" aria-hidden="true" />
+                            <div className="badge-preview-ornament badge-preview-ornament-left" aria-hidden="true" />
+                            <div className="badge-preview-ornament badge-preview-ornament-right" aria-hidden="true" />
+                            <div className="badge-preview-gridline badge-preview-gridline-horizontal" aria-hidden="true" />
+                            <div className="badge-preview-gridline badge-preview-gridline-vertical" aria-hidden="true" />
+                            <div className="badge-preview-icon">
+                              {badgeForm.customIcon
+                                ? <img src={badgeForm.customIcon} alt="" className="badge-custom-icon-img" />
+                                : renderBadgeIcon(badgeForm.icon)}
+                            </div>
+                          </>
+                        )) : null}
+                        <div className="badge-preview-copy">
+                          {badgeForm.showTitle ? <strong>{badgeForm.title.trim() || 'Participant'}</strong> : null}
+                          {badgeForm.showSubtitle && badgeForm.subtitle.trim() ? <span>{badgeForm.subtitle.trim()}</span> : null}
+                        </div>
                       </div>
-                      <div className="badge-preview-brand">
-                        {brandKey === 'rag' ? 'RAG' : 'vNWS'}
+                    )}
+                    {badgeForm.showHub && (badgeForm.hubIcao || badgeForm.hubCountry) ? (
+                      <div className={`badge-hub-chip badge-hub-${badgeForm.hubPosition}${badgeForm.hubStyle === 'plain' ? ' is-plain' : ''}`} aria-label={`Hub: ${badgeForm.hubIcao}`}>
+                        {badgeForm.hubCountry ? <span className={`fi fi-${badgeForm.hubCountry} badge-hub-flag`} aria-hidden="true" /> : null}
+                        {badgeForm.hubIcao ? <span className="badge-hub-icao">{badgeForm.hubIcao}</span> : null}
                       </div>
-                    </div>
+                    ) : null}
                   </div>
                 ) : (
                 <div
@@ -9825,67 +11644,362 @@ function App() {
           </div>
         </div>
 
-        {vatsimRegionCoordinationSection ? (
-          <section className="panel-card">
-            {vatsimRegionCoordinationSection}
-          </section>
+        {isBadgeMode && badgeTab === 'icons' ? (
+          <div className="badge-bottom-panel">
+            <div className="badge-bottom-card badge-bottom-flag-card">
+              <span className="badge-bottom-card-title">{locale === 'ru' ? 'Иконки' : 'Icons'}</span>
+              <div className="badge-icon-library badge-bottom-icon-grid">
+                {([
+                  { group: badgeStrings.iconGroupAircraft, icons: [['aircraft', badgeStrings.iconAircraft], ['jet', badgeStrings.iconJet], ['airliner', badgeStrings.iconAirliner], ['prop', badgeStrings.iconProp], ['helicopter', badgeStrings.iconHelicopter], ['cargo', badgeStrings.iconCargo], ['drone', badgeStrings.iconDrone], ['concorde', badgeStrings.iconConcorde]] },
+                  { group: badgeStrings.iconGroupSilhouettes, icons: [['b737', 'B737'], ['a320', 'A320'], ['b747', 'B747'], ['b777', 'B777'], ['a380', 'A380'], ['a350', 'A350']] },
+                  { group: badgeStrings.iconGroupNavigation, icons: [['globe', badgeStrings.iconGlobe], ['compass', badgeStrings.iconCompass], ['route', badgeStrings.iconRoute], ['waypoint', badgeStrings.iconWaypoint], ['runway', badgeStrings.iconRunway], ['radar', badgeStrings.iconRadar]] },
+                  { group: badgeStrings.iconGroupAwards, icons: [['medal', badgeStrings.iconMedal], ['star', badgeStrings.iconStar], ['trophy', badgeStrings.iconTrophy], ['crown', badgeStrings.iconCrown], ['laurel', badgeStrings.iconLaurel], ['wings', badgeStrings.iconWings], ['shield', badgeStrings.iconShield], ['diamond', badgeStrings.iconDiamond], ['ribbon', badgeStrings.iconRibbon]] },
+                  { group: badgeStrings.iconGroupVatsim, icons: [['vatsim', badgeStrings.iconVatsim], ['tower', badgeStrings.iconTower], ['atc', badgeStrings.iconAtc], ['headset', badgeStrings.iconHeadset]] },
+                  { group: badgeStrings.iconGroupEvents, icons: [['calendar', badgeStrings.iconCalendar], ['fireworks', badgeStrings.iconFireworks], ['balloon', badgeStrings.iconBalloon], ['banner', badgeStrings.iconBanner], ['megaphone', badgeStrings.iconMegaphone], ['formation', badgeStrings.iconFormation]] },
+                  { group: badgeStrings.iconGroupSeasonal, icons: [['island', badgeStrings.iconIsland], ['palm', badgeStrings.iconPalm], ['island-plane', badgeStrings.iconIslandPlane], ['cocktail', badgeStrings.iconCocktail], ['sunset', badgeStrings.iconSunset], ['wave', badgeStrings.iconWave], ['sunglasses', badgeStrings.iconSunglasses], ['surfboard', badgeStrings.iconSurfboard], ['snowflake', badgeStrings.iconSnowflake], ['sun', badgeStrings.iconSun], ['leaf', badgeStrings.iconLeaf], ['flower', badgeStrings.iconFlower], ['umbrella', badgeStrings.iconUmbrella]] },
+                  { group: badgeStrings.iconGroupSport, icons: [['soccer', badgeStrings.iconSoccer], ['basketball', badgeStrings.iconBasketball], ['tennis', badgeStrings.iconTennis], ['volleyball', badgeStrings.iconVolleyball], ['checkered-flag', badgeStrings.iconCheckeredFlag], ['racecar', badgeStrings.iconRacecar], ['helmet', badgeStrings.iconHelmet], ['steering-wheel', badgeStrings.iconSteeringWheel], ['podium', badgeStrings.iconPodium], ['dumbbell', badgeStrings.iconDumbbell], ['stopwatch', badgeStrings.iconStopwatch]] },
+                  { group: badgeStrings.iconGroupAirport, icons: [['terminal', badgeStrings.iconTerminal], ['suitcase', badgeStrings.iconSuitcase], ['boarding-pass', badgeStrings.iconBoardingPass], ['windsock', badgeStrings.iconWindsock], ['fuel', badgeStrings.iconFuel], ['departure', badgeStrings.iconDeparture], ['arrival', badgeStrings.iconArrival]] },
+                ] as Array<{ group: string, icons: Array<[BadgeIcon, string]> }>).map(({ group, icons }) => (
+                  <div key={group} className="badge-icon-group">
+                    <span className="badge-icon-group-label">{group}</span>
+                    <div className="badge-icon-grid" role="group">
+                      {icons.map(([iconValue, iconLabel]) => (
+                        <button key={iconValue} className={`badge-icon-button${badgeForm.icon === iconValue ? ' is-active' : ''}`} type="button" onClick={() => updateBadgeField('icon', iconValue)} aria-pressed={badgeForm.icon === iconValue}>
+                          <span className="badge-icon-button-glyph">{renderBadgeIcon(iconValue)}</span>
+                          <span>{iconLabel}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : isBadgeMode && badgeTab === 'text' ? (
+          <div className="badge-bottom-panel">
+            <div className="badge-bottom-card badge-bottom-flag-card">
+              <span className="badge-bottom-card-title">{locale === 'ru' ? 'Стиль надписей' : 'Text style'}</span>
+              <div className="badge-text-style-row">
+                {([
+                  {
+                    label: locale === 'ru' ? 'Верхняя надпись' : 'Top label',
+                    fontField: 'topLabelFont', sizeField: 'topLabelSize', colorField: 'topLabelColor', shiftXField: 'topLabelShiftX', shiftYField: 'topLabelShiftY',
+                    maxSize: 24,
+                  },
+                  {
+                    label: locale === 'ru' ? 'Заголовок' : 'Title',
+                    fontField: 'titleFont', sizeField: 'titleSize', colorField: 'titleColor', shiftXField: 'titleShiftX', shiftYField: 'titleShiftY',
+                    maxSize: 48,
+                  },
+                  {
+                    label: locale === 'ru' ? 'Подзаголовок' : 'Subtitle',
+                    fontField: 'subtitleFont', sizeField: 'subtitleSize', colorField: 'subtitleColor', shiftXField: 'subtitleShiftX', shiftYField: 'subtitleShiftY',
+                    maxSize: 36,
+                  },
+                ] as Array<{ label: string, fontField: keyof BadgeFormState, sizeField: keyof BadgeFormState, colorField: keyof BadgeFormState, shiftXField: keyof BadgeFormState, shiftYField: keyof BadgeFormState, maxSize: number }>).map((target) => {
+                  const sizeValue = badgeForm[target.sizeField] as number
+                  const colorValue = badgeForm[target.colorField] as string
+                  const fontValue = badgeForm[target.fontField] as string
+                  const shiftX = badgeForm[target.shiftXField] as number
+                  const shiftY = badgeForm[target.shiftYField] as number
+                  return (
+                    <div key={target.label} className="badge-text-style-group">
+                      <span className="badge-icon-group-label">{target.label}</span>
+                      <div className="field-grid">
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Шрифт' : 'Font'}</span>
+                          <select value={fontValue} onChange={(e) => updateBadgeField(target.fontField as 'titleFont', e.target.value)}>
+                            <option value="inherit">{locale === 'ru' ? 'Как у бейджа' : 'Badge default'}</option>
+                            <option value="'Inter', sans-serif">Inter</option>
+                            <option value="'Oswald', sans-serif">Oswald</option>
+                            <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                            <option value="'Bebas Neue', cursive">Bebas</option>
+                            <option value="'Orbitron', sans-serif">Orbitron</option>
+                            <option value="'Exo 2', sans-serif">Exo 2</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Размер' : 'Size'}: {sizeValue > 0 ? `${sizeValue}px` : (locale === 'ru' ? 'Авто' : 'Auto')}</span>
+                          <input type="range" min={0} max={target.maxSize} step={1} value={sizeValue} onChange={(e) => updateBadgeField(target.sizeField as 'titleSize', Number(e.target.value))} />
+                        </label>
+                      </div>
+                      <div className="field-grid">
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Сдвиг X' : 'Shift X'}: {shiftX}px</span>
+                          <input type="range" min={-60} max={60} step={1} value={shiftX} onChange={(e) => updateBadgeField(target.shiftXField as 'titleShiftX', Number(e.target.value))} />
+                        </label>
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Сдвиг Y' : 'Shift Y'}: {shiftY}px</span>
+                          <input type="range" min={-60} max={60} step={1} value={shiftY} onChange={(e) => updateBadgeField(target.shiftYField as 'titleShiftY', Number(e.target.value))} />
+                        </label>
+                      </div>
+                      <label className="field">
+                        <span>{locale === 'ru' ? 'Цвет' : 'Color'}</span>
+                        <ColorField value={colorValue} fallback="#ffffff" onChange={(v) => updateBadgeField(target.colorField as 'titleColor', v)} />
+                      </label>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ) : isBadgeMode && badgeTab === 'elements' ? (
+          <div className="badge-bottom-panel">
+            <div className="badge-bottom-card badge-bottom-flag-card">
+              {badgeForm.layout === 'flag' ? (
+              <>
+              <div className="badge-bottom-flag-header">
+                <span className="badge-bottom-card-title">{locale === 'ru' ? 'Флаг страны' : 'Country Flag'}</span>
+                <div className="badge-bottom-flag-icao-wrap">
+                  <input
+                    type="text"
+                    className="badge-bottom-flag-icao-input"
+                    maxLength={4}
+                    placeholder="ИКАО / ICAO"
+                    value={flagCountrySearch}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                      setFlagCountrySearch(val)
+                      const detected = getCountryFromIcao(val)
+                      if (detected) updateBadgeField('flagCountry', detected)
+                    }}
+                  />
+                  {badgeForm.flagCountry ? (
+                    <span className={`fi fi-${badgeForm.flagCountry} badge-bottom-flag-icao-preview`} aria-hidden="true" />
+                  ) : null}
+                </div>
+              </div>
+              <div className="badge-flag-country-grid badge-bottom-flag-grid">
+                <button
+                  className={`badge-flag-country-btn${badgeForm.flagCountry === '' ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => { updateBadgeField('flagCountry', ''); updateBadgeField('flagData', ''); setFlagCountrySearch('') }}
+                  title={locale === 'ru' ? 'Нет' : 'None'}
+                >
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.04em', opacity: 0.6 }}>{locale === 'ru' ? 'НЕТ' : 'NONE'}</span>
+                </button>
+                {allFlagCountries.map(({ code: cc, name }) => (
+                  <button
+                    key={cc}
+                    className={`badge-flag-country-btn${badgeForm.flagCountry === cc ? ' is-active' : ''}`}
+                    type="button"
+                    onClick={() => { updateBadgeField('flagData', ''); updateBadgeField('flagCountry', cc); setFlagCountrySearch('') }}
+                    title={name}
+                  >
+                    <div className="badge-flag-country-flag">
+                      <span className={`fi fi-${cc}`} aria-hidden="true" />
+                    </div>
+                    <span className="badge-flag-country-label">{cc.toUpperCase()}</span>
+                  </button>
+                ))}
+              </div>
+              </>
+              ) : null}
+              <div className={`badge-bottom-city-section${badgeForm.layout === 'flag' ? '' : ' is-standalone'}`}>
+                <div className="badge-bottom-flag-header">
+                  <span className="badge-bottom-card-title">{locale === 'ru' ? 'Фон города' : 'City Background'}</span>
+                  <div className="badge-bottom-flag-icao-wrap" style={{ flex: 1, maxWidth: 'none' }}>
+                    <input
+                      type="text"
+                      className="badge-bottom-flag-icao-input"
+                      style={{ maxWidth: 'none', width: '100%', letterSpacing: 'normal', textTransform: 'none' }}
+                      placeholder={locale === 'ru' ? 'Город или достопримечательность…' : 'City or landmark…'}
+                      value={cityPhotoQuery}
+                      onChange={(e) => setCityPhotoQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void searchCityPhotos() } }}
+                    />
+                    <button className="mini-choice-card" type="button" disabled={cityPhotoLoading || !cityPhotoQuery.trim()} onClick={() => void searchCityPhotos()}>
+                      {cityPhotoLoading ? (locale === 'ru' ? 'Ищем…' : 'Searching…') : (locale === 'ru' ? 'Найти' : 'Search')}
+                    </button>
+                    {badgeForm.badgePhoto ? (
+                      <button className="mini-choice-card" type="button" onClick={() => updateBadgeField('badgePhoto', '')}>
+                        {locale === 'ru' ? 'Убрать фон' : 'Remove'}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="badge-city-preset-row">
+                  {([
+                    [locale === 'ru' ? 'Москва — Кремль' : 'Moscow — Kremlin', 'Moscow Kremlin'],
+                    [locale === 'ru' ? 'Питер — Дворцовая' : 'St Petersburg — Palace Sq', 'Palace Square Saint Petersburg'],
+                    [locale === 'ru' ? 'Москва — Сити' : 'Moscow — City', 'Moscow City skyscrapers'],
+                    [locale === 'ru' ? 'Казань — Кремль' : 'Kazan — Kremlin', 'Kazan Kremlin'],
+                    [locale === 'ru' ? 'Сочи' : 'Sochi', 'Sochi coast'],
+                    [locale === 'ru' ? 'Дубай' : 'Dubai', 'Dubai skyline'],
+                    [locale === 'ru' ? 'Стамбул' : 'Istanbul', 'Istanbul Bosphorus mosque'],
+                    [locale === 'ru' ? 'Париж' : 'Paris', 'Paris Eiffel Tower'],
+                    [locale === 'ru' ? 'Нью-Йорк' : 'New York', 'New York Manhattan skyline'],
+                  ] as Array<[string, string]>).map(([label, query]) => (
+                    <button key={query} className="mini-choice-card" type="button" disabled={cityPhotoLoading} onClick={() => void searchCityPhotos(query)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {cityPhotoResults.length ? (
+                  <div className="badge-city-photo-grid badge-bottom-city-grid">
+                    {cityPhotoResults.map((photo) => (
+                      <button
+                        key={photo.thumbUrl}
+                        type="button"
+                        className={`badge-city-photo-btn${cityPhotoApplying === photo.thumbUrl ? ' is-loading' : ''}`}
+                        title={photo.title}
+                        onClick={() => void applyCityPhoto(photo.thumbUrl)}
+                      >
+                        <img src={photo.thumbUrl} alt={photo.title} loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {badgeForm.badgePhoto ? (
+                  <div className="field-grid" style={{ maxWidth: 520 }}>
+                    <label className="field">
+                      <span>{locale === 'ru' ? 'Прозрачность' : 'Opacity'}: {Math.round(badgeForm.photoOpacity * 100)}%</span>
+                      <input type="range" min={0.05} max={1} step={0.01} value={badgeForm.photoOpacity} onChange={(e) => updateBadgeField('photoOpacity', Number(e.target.value))} />
+                    </label>
+                    <label className="field">
+                      <span>{locale === 'ru' ? 'Наложение' : 'Blend'}</span>
+                      <select value={badgeForm.photoBlend} onChange={(e) => updateBadgeField('photoBlend', e.target.value as BadgePhotoBlend)}>
+                        <option value="luminosity">Luminosity</option>
+                        <option value="overlay">Overlay</option>
+                        <option value="multiply">Multiply</option>
+                        <option value="screen">Screen</option>
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
         ) : null}
 
-        <div className="preview-support-grid">
-          {!isBadgeMode ? (
-            <section className={`panel-card support-card${eventType === 'community-challenge' ? ' support-card-community' : ''}`}>
-              {eventType === 'community-challenge' ? (
-                <>
-                  <div className="support-card-section">
-                    <div className="support-card-heading">
-                      <h2>{strings.communityTeamsTitle}</h2>
-                      <p>{strings.communityTeamsHelp}</p>
-                    </div>
+        {isComplexEventActive ? (
+          <div className="vatsim-region-below-preview">
+            <section style={{ display: 'grid', gap: 12 }}>
+              <span className="section-mini-title">{locale === 'ru' ? 'Партнёры — дополнительные авиакомпании' : 'Partners — additional airlines'}</span>
+              <label className="field">
+                <span>{locale === 'ru' ? 'Список партнёров' : 'Partner list'}</span>
+                <input
+                  type="text"
+                  value={form.complexEventPartners}
+                  onChange={(event) => updateField('complexEventPartners', event.target.value)}
+                  placeholder={locale === 'ru' ? 'AirlineA, AirlineB' : 'AirlineA, AirlineB'}
+                />
+              </label>
+              <p className="field-help" style={{ marginTop: 0 }}>
+                {locale === 'ru'
+                  ? 'Через запятую — названия ВА-партнёров, которые появятся на баннере.'
+                  : 'Comma-separated list of partner VA names shown on the banner.'}
+              </p>
+            </section>
+          </div>
+        ) : null}
 
-                    {communityTeamsEditor}
-                  </div>
+        {eventType === 'slotted' ? (
+          <div className="vatsim-region-below-preview">
+            <div className="slotted-waves-panel">
+              <div className="slotted-waves-header">
+                <span className="section-mini-title">{locale === 'ru' ? 'Волны (Waves)' : 'Waves'}</span>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => {
+                    const next = [...slottedWaves, createSlottedWave(slottedWaves.length)]
+                    updateField('slottedWaves', serializeSlottedWaves(next))
+                  }}
+                >
+                  {locale === 'ru' ? '+ Добавить волну' : '+ Add wave'}
+                </button>
+              </div>
 
-                  <div className="support-card-divider"></div>
-
-                  <div className="support-card-section">
-                    <h3 className="support-card-subtitle">{strings.imagesTitle}</h3>
-                    {imageAndLogoControls}
-                  </div>
-                </>
+              {slottedWaves.length === 0 ? (
+                <p className="field-help">{locale === 'ru' ? 'Нет волн. Нажмите "+ Добавить волну" для создания.' : 'No waves yet. Click "+ Add wave" to create one.'}</p>
               ) : (
-                <>
-                  <h2>{strings.imagesTitle}</h2>
-                  {imageAndLogoControls}
-                </>
+                <div className="slotted-waves-list">
+                  {slottedWaves.map((wave, index) => (
+                    <div key={wave.id} className="slotted-wave-card">
+                      <div className="slotted-wave-card-header">
+                        <span className="slotted-wave-number">{locale === 'ru' ? `Волна ${index + 1}` : `Wave ${index + 1}`}</span>
+                        <button
+                          className="ghost-button slotted-wave-remove"
+                          type="button"
+                          onClick={() => {
+                            const next = slottedWaves.filter((_, i) => i !== index)
+                            updateField('slottedWaves', serializeSlottedWaves(next))
+                          }}
+                        >×</button>
+                      </div>
+                      <div className="slotted-wave-fields">
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Название' : 'Label'}</span>
+                          <input
+                            type="text"
+                            value={wave.label}
+                            placeholder={`Wave ${index + 1}`}
+                            onChange={(e) => {
+                              const next = slottedWaves.map((w, i) => i === index ? { ...w, label: e.target.value } : w)
+                              updateField('slottedWaves', serializeSlottedWaves(next))
+                            }}
+                          />
+                        </label>
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Время открытия' : 'Open time'}</span>
+                          <input
+                            type="text"
+                            value={wave.openTime}
+                            placeholder="18:00z"
+                            onChange={(e) => {
+                              const next = slottedWaves.map((w, i) => i === index ? { ...w, openTime: e.target.value } : w)
+                              updateField('slottedWaves', serializeSlottedWaves(next))
+                            }}
+                          />
+                        </label>
+                        <label className="field">
+                          <span>{locale === 'ru' ? 'Условие' : 'Condition'}</span>
+                          <input
+                            type="text"
+                            value={wave.condition}
+                            placeholder={locale === 'ru' ? 'Уровень 5+' : 'Level 5+'}
+                            onChange={(e) => {
+                              const next = slottedWaves.map((w, i) => i === index ? { ...w, condition: e.target.value } : w)
+                              updateField('slottedWaves', serializeSlottedWaves(next))
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </section>
-          ) : (
-            <section className="panel-card support-card">
-              <h2>{badgeStrings.settingsTitle}</h2>
-              <p>{badgeStrings.exportHelp}</p>
-            </section>
-          )}
-
-          <section className="panel-card panel-actions support-card support-card-export">
-            <div>
-              <h2>{strings.exportTitle}</h2>
-              <p>{isBadgeMode ? badgeStrings.exportHelp : strings.exportHelp}</p>
             </div>
+          </div>
+        ) : null}
 
-            <button
-              className="primary-button"
-              type="button"
-              onClick={exportCurrentPreview}
-              disabled={isExporting || isAutoSelectingBackground || isApplyingFavoriteBackground}
-            >
-              {isExporting
-                ? (isBadgeMode ? badgeStrings.exportingButton : strings.exportingButton)
-                : (isBadgeMode ? badgeStrings.exportButton : strings.exportPngButton)}
-            </button>
+        {isVatsimRegionEventActive ? (
+          <div className="vatsim-region-below-preview">
+            {vatsimRegionCoordinationSection}
+          </div>
+        ) : null}
 
-            {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-          </section>
-        </div>
+        {eventType === 'focus-airport' && autoBackgroundOptions.length > 0 ? (
+          <div className="auto-background-picker">
+            <div className="auto-background-header">
+              <span className="section-mini-title">{strings.backgroundSuggestionsLabel}</span>
+              <div className="auto-background-actions">
+                <button className="ghost-button" type="button" onClick={randomizeAutoBackgroundOption} disabled={isAutoSelectingBackground || isApplyingFavoriteBackground}>{strings.backgroundRandomizeButton}</button>
+                <button className="ghost-button" type="button" onClick={regenerateAutoBackgroundOptions} disabled={isAutoSelectingBackground || isApplyingFavoriteBackground}>{strings.backgroundRegenerateButton}</button>
+                <button className="ghost-button" type="button" onClick={saveCurrentBackgroundToFavorites} disabled={!selectedAutoBackgroundOption || isAutoSelectingBackground || isApplyingFavoriteBackground || isFavoriteBackgroundSaved}>{strings.backgroundSaveFavoriteButton}</button>
+              </div>
+            </div>
+            <div className="auto-background-grid">
+              {autoBackgroundOptions.map((option) => (
+                <button key={option.key} className={`auto-background-card${backgroundUrl === option.objectUrl ? ' is-active' : ''}`} type="button" onClick={() => selectAutoBackgroundOption(option)} aria-pressed={backgroundUrl === option.objectUrl}>
+                  <span className="auto-background-card-image" style={{ backgroundImage: `linear-gradient(180deg, rgba(10, 12, 16, 0.04), rgba(10, 12, 16, 0.28)), url(${option.objectUrl})` }} aria-hidden="true"></span>
+                  <span className="auto-background-card-label">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <footer className="app-footer">
           <a className="app-footer-link" href="https://twitch.tv/sebadavinch" target="_blank" rel="noreferrer">
@@ -9894,6 +12008,33 @@ function App() {
           </a>
         </footer>
       </main>
+      </>
+      )}
+
+      {isExportOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setIsExportOpen(false)}>
+          <div className="modal-card modal-card-export" role="dialog" aria-modal="true" aria-label={strings.exportTitle} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-card-header">
+              <h2>{strings.exportTitle}</h2>
+              <button className="ghost-button" type="button" onClick={() => setIsExportOpen(false)}>
+                {locale === 'ru' ? 'Закрыть' : 'Close'}
+              </button>
+            </div>
+            <div className="modal-card-body modal-export-body">
+              <p>{isBadgeMode ? badgeStrings.exportHelp : strings.exportHelp}</p>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => { void exportCurrentPreview(); setIsExportOpen(false) }}
+                disabled={isExporting || (!isBadgeMode && (isAutoSelectingBackground || isApplyingFavoriteBackground))}
+              >
+                {isExporting ? strings.exportingButton : (isBadgeMode ? badgeStrings.exportButton : strings.exportPngButton)}
+              </button>
+              {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isGuideOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setIsGuideOpen(false)}>

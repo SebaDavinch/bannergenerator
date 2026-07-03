@@ -1,0 +1,859 @@
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { toPng } from 'html-to-image'
+import {
+  BADGE3D_VIEWBOX,
+  createDefaultBadge3DState,
+  createPhotoLayer,
+  type Badge3DShape,
+  type Badge3DState,
+  type FrameMaterial,
+  type PhotoLayer,
+  type PhotoLayerBlend,
+  type PhotoLayerMask,
+} from './types'
+import './badge3d.css'
+
+const STORAGE_KEY = 'badge3dSettingsV1'
+const VB = BADGE3D_VIEWBOX
+const CENTER = VB / 2
+
+type Locale = 'ru' | 'en'
+
+const STRINGS = {
+  ru: {
+    tabBanner: 'Баннер',
+    tabBadge: 'Бейдж',
+    tabBadge3d: '3D Бейдж',
+    sectionShape: 'Форма и рамка',
+    sectionLayers: 'Фото-слои',
+    sectionBackground: 'Фон-заливка',
+    sectionText: 'Текст',
+    shapeCircle: 'Круг',
+    shapeRounded: 'Квадрат',
+    shapeShield: 'Щит',
+    shapeHexagon: 'Шестигранник',
+    materialSilver: 'Серебро',
+    materialGold: 'Золото',
+    materialBronze: 'Бронза',
+    materialNavy: 'Эмаль',
+    frameAccent: 'Цвет канта',
+    frameWidth: 'Толщина рамки',
+    addPhoto: 'Добавить фото',
+    layersEmpty: 'Пока нет фото-слоёв. Добавьте кадр — он станет фоном бейджа.',
+    layerMask: 'Маска слоя',
+    maskFull: 'Весь бейдж',
+    maskBottom: 'Нижняя часть',
+    maskTop: 'Верхняя часть',
+    maskCircle: 'Круг',
+    feather: 'Растушёвка краёв',
+    opacity: 'Непрозрачность',
+    blend: 'Наложение',
+    brightness: 'Яркость',
+    contrast: 'Контраст',
+    saturation: 'Насыщенность',
+    dragHint: 'Перетаскивайте выбранный слой мышью прямо на превью, колесо — масштаб.',
+    bgTop: 'Верхний цвет',
+    bgBottom: 'Нижний цвет',
+    scrimOpacity: 'Затемнение под текст',
+    scrimHeight: 'Высота затемнения',
+    yearLabel: 'Год (крупно)',
+    line2Label: 'Вторая строка',
+    plateLabel: 'Текст плашки',
+    flagLabel: 'Флаг (код страны, напр. ru)',
+    exportButton: 'Скачать PNG 200×200',
+    exporting: 'Экспорт…',
+    previewLabel: 'Превью',
+    previewTitle: '3D бейдж ивента',
+    exportError: 'Не удалось экспортировать бейдж. Попробуйте ещё раз.',
+  },
+  en: {
+    tabBanner: 'Banner',
+    tabBadge: 'Badge',
+    tabBadge3d: '3D Badge',
+    sectionShape: 'Shape & frame',
+    sectionLayers: 'Photo layers',
+    sectionBackground: 'Background fill',
+    sectionText: 'Text',
+    shapeCircle: 'Circle',
+    shapeRounded: 'Square',
+    shapeShield: 'Shield',
+    shapeHexagon: 'Hexagon',
+    materialSilver: 'Silver',
+    materialGold: 'Gold',
+    materialBronze: 'Bronze',
+    materialNavy: 'Enamel',
+    frameAccent: 'Pinstripe color',
+    frameWidth: 'Frame width',
+    addPhoto: 'Add photo',
+    layersEmpty: 'No photo layers yet. Add an image — it becomes the badge background.',
+    layerMask: 'Layer mask',
+    maskFull: 'Full badge',
+    maskBottom: 'Bottom part',
+    maskTop: 'Top part',
+    maskCircle: 'Circle',
+    feather: 'Edge feather',
+    opacity: 'Opacity',
+    blend: 'Blend',
+    brightness: 'Brightness',
+    contrast: 'Contrast',
+    saturation: 'Saturation',
+    dragHint: 'Drag the selected layer directly on the preview; mouse wheel zooms it.',
+    bgTop: 'Top color',
+    bgBottom: 'Bottom color',
+    scrimOpacity: 'Text scrim opacity',
+    scrimHeight: 'Scrim height',
+    yearLabel: 'Year (large)',
+    line2Label: 'Second line',
+    plateLabel: 'Plate text',
+    flagLabel: 'Flag (country code, e.g. ru)',
+    exportButton: 'Download PNG 200×200',
+    exporting: 'Exporting…',
+    previewLabel: 'Preview',
+    previewTitle: '3D event badge',
+    exportError: 'Failed to export the badge. Please try again.',
+  },
+} satisfies Record<Locale, Record<string, string>>
+
+const FRAME_GRADIENTS: Record<FrameMaterial, [string, string, string, string]> = {
+  silver: ['#ffffff', '#c9d2dd', '#7e8b9d', '#e9eef5'],
+  gold: ['#fff6cf', '#e8bd52', '#96690f', '#f6dd8d'],
+  bronze: ['#f6d3b3', '#c08049', '#6d431d', '#dda671'],
+  navy: ['#2d4d80', '#16294d', '#0a1730', '#1f3a63'],
+}
+
+function shapePath(shape: Badge3DShape, inset: number): string {
+  const min = inset
+  const max = VB - inset
+  const size = max - min
+  if (shape === 'circle') {
+    const r = size / 2
+    return `M ${CENTER - r} ${CENTER} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0 Z`
+  }
+  if (shape === 'rounded-square') {
+    const r = Math.max(24, 92 - inset)
+    return [
+      `M ${min + r} ${min}`,
+      `H ${max - r}`, `A ${r} ${r} 0 0 1 ${max} ${min + r}`,
+      `V ${max - r}`, `A ${r} ${r} 0 0 1 ${max - r} ${max}`,
+      `H ${min + r}`, `A ${r} ${r} 0 0 1 ${min} ${max - r}`,
+      `V ${min + r}`, `A ${r} ${r} 0 0 1 ${min + r} ${min}`,
+      'Z',
+    ].join(' ')
+  }
+  if (shape === 'hexagon') {
+    const r = size / 2
+    const points: string[] = []
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (Math.PI / 180) * (60 * i - 90)
+      points.push(`${CENTER + r * Math.cos(angle)} ${CENTER + r * Math.sin(angle)}`)
+    }
+    return `M ${points.join(' L ')} Z`
+  }
+  // Shield: rounded top corners, tapered sides, soft point at the bottom.
+  const topY = min + size * 0.02
+  const cornerR = size * 0.14
+  const waistY = min + size * 0.62
+  const tipY = max
+  return [
+    `M ${min + cornerR} ${topY}`,
+    `H ${max - cornerR}`,
+    `Q ${max} ${topY} ${max} ${topY + cornerR}`,
+    `V ${waistY}`,
+    `C ${max} ${waistY + size * 0.2} ${CENTER + size * 0.22} ${tipY - size * 0.12} ${CENTER} ${tipY}`,
+    `C ${CENTER - size * 0.22} ${tipY - size * 0.12} ${min} ${waistY + size * 0.2} ${min} ${waistY}`,
+    `V ${topY + cornerR}`,
+    `Q ${min} ${topY} ${min + cornerR} ${topY}`,
+    'Z',
+  ].join(' ')
+}
+
+function loadStoredState(): Badge3DState {
+  const fallback = createDefaultBadge3DState()
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      return fallback
+    }
+    const parsed = JSON.parse(raw) as Partial<Badge3DState>
+    return {
+      ...fallback,
+      ...parsed,
+      layers: Array.isArray(parsed.layers) ? parsed.layers : [],
+    }
+  } catch {
+    return fallback
+  }
+}
+
+type Badge3DStudioProps = {
+  locale: Locale
+  modeTabs: React.ReactNode
+  panelHeader: React.ReactNode
+}
+
+export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioProps) {
+  const t = STRINGS[locale]
+  const [state, setState] = useState<Badge3DState>(loadStoredState)
+  const [isExporting, setIsExporting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const previewRef = useRef<HTMLDivElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; layerX: number; layerY: number } | null>(null)
+
+  useEffect(() => {
+    try {
+      // Layers hold data URLs which can exceed the localStorage quota; drop them on failure.
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    } catch {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, layers: [] }))
+      } catch {
+        // Storage unavailable — settings simply will not persist.
+      }
+    }
+  }, [state])
+
+  const selectedLayer = state.layers.find((layer) => layer.id === state.selectedLayerId) ?? null
+
+  function update<K extends keyof Badge3DState>(key: K, value: Badge3DState[K]) {
+    setState((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function updateLayer(id: string, patch: Partial<PhotoLayer>) {
+    setState((prev) => ({
+      ...prev,
+      layers: prev.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
+    }))
+  }
+
+  function moveLayer(id: string, direction: -1 | 1) {
+    setState((prev) => {
+      const index = prev.layers.findIndex((layer) => layer.id === id)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= prev.layers.length) {
+        return prev
+      }
+      const layers = [...prev.layers]
+      const [moved] = layers.splice(index, 1)
+      layers.splice(target, 0, moved)
+      return { ...prev, layers }
+    })
+  }
+
+  function removeLayer(id: string) {
+    setState((prev) => ({
+      ...prev,
+      layers: prev.layers.filter((layer) => layer.id !== id),
+      selectedLayerId: prev.selectedLayerId === id ? null : prev.selectedLayerId,
+    }))
+  }
+
+  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    files.forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+          return
+        }
+        const layer = createPhotoLayer(reader.result, file.name.replace(/\.[^.]+$/, ''))
+        setState((prev) => ({ ...prev, layers: [...prev.layers, layer], selectedLayerId: layer.id }))
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function previewScaleFactor(): number {
+    const node = previewRef.current
+    if (!node) {
+      return 1
+    }
+    return VB / node.getBoundingClientRect().width
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selectedLayer) {
+      return
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      layerX: selectedLayer.x,
+      layerY: selectedLayer.y,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId || !state.selectedLayerId) {
+      return
+    }
+    const factor = previewScaleFactor()
+    updateLayer(state.selectedLayerId, {
+      x: drag.layerX + (event.clientX - drag.startX) * factor,
+      y: drag.layerY + (event.clientY - drag.startY) * factor,
+    })
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null
+    }
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    if (!selectedLayer || !state.selectedLayerId) {
+      return
+    }
+    event.preventDefault()
+    const next = Math.min(4, Math.max(0.4, selectedLayer.scale * (event.deltaY > 0 ? 0.94 : 1.06)))
+    updateLayer(state.selectedLayerId, { scale: next })
+  }
+
+  async function exportPng() {
+    const node = previewRef.current
+    if (!node) {
+      return
+    }
+    setIsExporting(true)
+    setErrorMessage('')
+    try {
+      await document.fonts.ready
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)))
+      const nodeSize = node.getBoundingClientRect().width
+      const dataUrl = await toPng(node, { pixelRatio: 800 / nodeSize })
+      const image = new Image()
+      await new Promise((resolve, reject) => {
+        image.onload = resolve
+        image.onerror = reject
+        image.src = dataUrl
+      })
+      const canvas = document.createElement('canvas')
+      canvas.width = 200
+      canvas.height = 200
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('canvas 2d context unavailable')
+      }
+      context.imageSmoothingEnabled = true
+      context.imageSmoothingQuality = 'high'
+      context.drawImage(image, 0, 0, 200, 200)
+      const link = document.createElement('a')
+      link.download = `badge3d-${state.year || 'event'}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch {
+      setErrorMessage(t.exportError)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const outerPath = useMemo(() => shapePath(state.shape, 4), [state.shape])
+  const bevelPath = useMemo(() => shapePath(state.shape, 8), [state.shape])
+  const pinstripePath = useMemo(
+    () => shapePath(state.shape, 4 + state.frameWidth * 0.55),
+    [state.shape, state.frameWidth],
+  )
+  const innerPath = useMemo(
+    () => shapePath(state.shape, 4 + state.frameWidth),
+    [state.shape, state.frameWidth],
+  )
+  const metal = FRAME_GRADIENTS[state.frameMaterial]
+
+  const shapeOptions: Array<[Badge3DShape, string]> = [
+    ['circle', t.shapeCircle],
+    ['rounded-square', t.shapeRounded],
+    ['shield', t.shapeShield],
+    ['hexagon', t.shapeHexagon],
+  ]
+  const materialOptions: Array<[FrameMaterial, string]> = [
+    ['silver', t.materialSilver],
+    ['gold', t.materialGold],
+    ['bronze', t.materialBronze],
+    ['navy', t.materialNavy],
+  ]
+  const maskOptions: Array<[PhotoLayerMask, string]> = [
+    ['full', t.maskFull],
+    ['bottom', t.maskBottom],
+    ['top', t.maskTop],
+    ['circle', t.maskCircle],
+  ]
+  const blendOptions: PhotoLayerBlend[] = ['normal', 'multiply', 'screen', 'overlay', 'luminosity']
+
+  return (
+    <>
+      <aside className="control-panel">
+        {panelHeader}
+        {modeTabs}
+
+        <div className="panel-tab-content">
+          <div className="tab-panel badge3d-panel">
+            <section className="badge3d-section">
+              <h3>{t.sectionShape}</h3>
+              <div className="badge3d-choice-grid" role="group" aria-label={t.sectionShape}>
+                {shapeOptions.map(([shape, label]) => (
+                  <button
+                    key={shape}
+                    className={`badge3d-choice${state.shape === shape ? ' is-active' : ''}`}
+                    type="button"
+                    onClick={() => update('shape', shape)}
+                    aria-pressed={state.shape === shape}
+                  >
+                    <svg viewBox={`0 0 ${VB} ${VB}`} aria-hidden="true">
+                      <path d={shapePath(shape, 20)} fill="currentColor" />
+                    </svg>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="badge3d-choice-grid" role="group" aria-label="Material">
+                {materialOptions.map(([material, label]) => (
+                  <button
+                    key={material}
+                    className={`badge3d-choice badge3d-material-${material}${state.frameMaterial === material ? ' is-active' : ''}`}
+                    type="button"
+                    onClick={() => update('frameMaterial', material)}
+                    aria-pressed={state.frameMaterial === material}
+                  >
+                    <span className="badge3d-material-swatch" aria-hidden="true" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="field">
+                <span>{t.frameAccent}</span>
+                <input type="color" value={state.frameAccent} onChange={(e) => update('frameAccent', e.target.value)} />
+              </label>
+              <label className="field">
+                <span>{t.frameWidth}: {state.frameWidth}px</span>
+                <input
+                  type="range"
+                  min={10}
+                  max={40}
+                  step={1}
+                  value={state.frameWidth}
+                  onChange={(e) => update('frameWidth', Number(e.target.value))}
+                />
+              </label>
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionLayers}</h3>
+              <button className="badge3d-add-photo" type="button" onClick={() => fileInputRef.current?.click()}>
+                <Plus size={14} />
+                <span>{t.addPhoto}</span>
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={handleFiles} />
+
+              {state.layers.length === 0 ? (
+                <p className="badge3d-empty">{t.layersEmpty}</p>
+              ) : (
+                <ul className="badge3d-layer-list">
+                  {[...state.layers].reverse().map((layer) => (
+                    <li key={layer.id}>
+                      <button
+                        className={`badge3d-layer-row${layer.id === state.selectedLayerId ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => update('selectedLayerId', layer.id)}
+                      >
+                        <img src={layer.src} alt="" />
+                        <span className="badge3d-layer-name">{layer.label}</span>
+                      </button>
+                      <span className="badge3d-layer-tools">
+                        <button type="button" onClick={() => updateLayer(layer.id, { visible: !layer.visible })} aria-label={t.opacity}>
+                          {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                        <button type="button" onClick={() => moveLayer(layer.id, 1)} aria-label="up">
+                          <ChevronUp size={13} />
+                        </button>
+                        <button type="button" onClick={() => moveLayer(layer.id, -1)} aria-label="down">
+                          <ChevronDown size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeLayer(layer.id)} aria-label="delete">
+                          <Trash2 size={13} />
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {selectedLayer ? (
+                <div className="badge3d-layer-settings">
+                  <p className="badge3d-hint">{t.dragHint}</p>
+                  <span className="badge3d-subhead">{t.layerMask}</span>
+                  <div className="badge3d-choice-grid">
+                    {maskOptions.map(([mask, label]) => (
+                      <button
+                        key={mask}
+                        className={`badge3d-choice${selectedLayer.mask === mask ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => updateLayer(selectedLayer.id, { mask })}
+                        aria-pressed={selectedLayer.mask === mask}
+                      >
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <label className="field">
+                    <span>{t.feather}: {selectedLayer.feather}px</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={120}
+                      step={4}
+                      value={selectedLayer.feather}
+                      onChange={(e) => updateLayer(selectedLayer.id, { feather: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{t.opacity}: {Math.round(selectedLayer.opacity * 100)}%</span>
+                    <input
+                      type="range"
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      value={selectedLayer.opacity}
+                      onChange={(e) => updateLayer(selectedLayer.id, { opacity: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{t.blend}</span>
+                    <select
+                      value={selectedLayer.blend}
+                      onChange={(e) => updateLayer(selectedLayer.id, { blend: e.target.value as PhotoLayerBlend })}
+                    >
+                      {blendOptions.map((blend) => (
+                        <option key={blend} value={blend}>{blend}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{t.brightness}: {selectedLayer.brightness.toFixed(2)}</span>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1.6}
+                      step={0.05}
+                      value={selectedLayer.brightness}
+                      onChange={(e) => updateLayer(selectedLayer.id, { brightness: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{t.contrast}: {selectedLayer.contrast.toFixed(2)}</span>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1.6}
+                      step={0.05}
+                      value={selectedLayer.contrast}
+                      onChange={(e) => updateLayer(selectedLayer.id, { contrast: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{t.saturation}: {selectedLayer.saturation.toFixed(2)}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={selectedLayer.saturation}
+                      onChange={(e) => updateLayer(selectedLayer.id, { saturation: Number(e.target.value) })}
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionBackground}</h3>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.bgTop}</span>
+                  <input type="color" value={state.bgTop} onChange={(e) => update('bgTop', e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>{t.bgBottom}</span>
+                  <input type="color" value={state.bgBottom} onChange={(e) => update('bgBottom', e.target.value)} />
+                </label>
+              </div>
+              <label className="field">
+                <span>{t.scrimOpacity}: {Math.round(state.scrimOpacity * 100)}%</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={state.scrimOpacity}
+                  onChange={(e) => update('scrimOpacity', Number(e.target.value))}
+                />
+              </label>
+              <label className="field">
+                <span>{t.scrimHeight}: {state.scrimHeight}%</span>
+                <input
+                  type="range"
+                  min={20}
+                  max={80}
+                  step={5}
+                  value={state.scrimHeight}
+                  onChange={(e) => update('scrimHeight', Number(e.target.value))}
+                />
+              </label>
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionText}</h3>
+              <label className="field">
+                <span>{t.yearLabel}</span>
+                <input type="text" value={state.year} maxLength={8} onChange={(e) => update('year', e.target.value)} />
+              </label>
+              <label className="field">
+                <span>{t.line2Label}</span>
+                <input type="text" value={state.line2} maxLength={26} onChange={(e) => update('line2', e.target.value)} />
+              </label>
+              <label className="field">
+                <span>{t.plateLabel}</span>
+                <input type="text" value={state.plateText} maxLength={12} onChange={(e) => update('plateText', e.target.value)} />
+              </label>
+              <label className="field">
+                <span>{t.flagLabel}</span>
+                <input
+                  type="text"
+                  value={state.flagCountry}
+                  maxLength={2}
+                  onChange={(e) => update('flagCountry', e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
+                />
+              </label>
+            </section>
+          </div>
+        </div>
+      </aside>
+
+      <main className="preview-panel">
+        <div className="preview-header">
+          <div>
+            <span className="preview-label">{t.previewLabel}</span>
+            <h2>{t.previewTitle}</h2>
+          </div>
+          <div className="preview-header-right">
+            <span className="resolution-chip">200×200</span>
+            <button
+              className="preview-export-btn"
+              type="button"
+              onClick={() => void exportPng()}
+              disabled={isExporting}
+              aria-label={t.exportButton}
+            >
+              <Download size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="preview-frame badge3d-preview-frame">
+          <div
+            ref={previewRef}
+            className="badge3d-preview"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onWheel={handleWheel}
+          >
+            <svg viewBox={`0 0 ${VB} ${VB}`} width="100%" height="100%" role="img" aria-label={t.previewTitle}>
+              <defs>
+                <linearGradient id="b3d-metal" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor={metal[0]} />
+                  <stop offset="0.35" stopColor={metal[1]} />
+                  <stop offset="0.7" stopColor={metal[2]} />
+                  <stop offset="1" stopColor={metal[3]} />
+                </linearGradient>
+                <linearGradient id="b3d-bg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor={state.bgTop} />
+                  <stop offset="1" stopColor={state.bgBottom} />
+                </linearGradient>
+                <linearGradient id="b3d-scrim" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#04101f" stopOpacity="0" />
+                  <stop offset="0.45" stopColor="#04101f" stopOpacity={state.scrimOpacity * 0.65} />
+                  <stop offset="1" stopColor="#04101f" stopOpacity={state.scrimOpacity} />
+                </linearGradient>
+                {/* A mask instead of clipPath: html-to-image drops clip-path url() refs during export. */}
+                <mask id="b3d-content-mask" maskUnits="userSpaceOnUse" x="0" y="0" width={VB} height={VB}>
+                  <path d={innerPath} fill="#ffffff" />
+                </mask>
+                <filter id="b3d-shadow" x="-15%" y="-15%" width="130%" height="130%">
+                  <feDropShadow dx="0" dy="7" stdDeviation="9" floodColor="#020a14" floodOpacity="0.5" />
+                </filter>
+                {state.layers.map((layer) => {
+                  if (layer.mask === 'full') {
+                    return null
+                  }
+                  const featherRatio = Math.min(0.45, layer.feather / VB)
+                  if (layer.mask === 'circle') {
+                    return (
+                      <radialGradient key={layer.id} id={`b3d-maskgrad-${layer.id}`} cx="0.5" cy="0.5" r="0.5">
+                        <stop offset={Math.max(0, 0.98 - featherRatio * 2.2)} stopColor="#ffffff" />
+                        <stop offset="1" stopColor="#000000" />
+                      </radialGradient>
+                    )
+                  }
+                  const from = layer.mask === 'bottom' ? 0.42 : 0.58
+                  const stops = layer.mask === 'bottom'
+                    ? [
+                        <stop key="a" offset={Math.max(0, from - featherRatio)} stopColor="#000000" />,
+                        <stop key="b" offset={Math.min(1, from + featherRatio)} stopColor="#ffffff" />,
+                      ]
+                    : [
+                        <stop key="a" offset={Math.max(0, from - featherRatio)} stopColor="#ffffff" />,
+                        <stop key="b" offset={Math.min(1, from + featherRatio)} stopColor="#000000" />,
+                      ]
+                  return (
+                    <linearGradient key={layer.id} id={`b3d-maskgrad-${layer.id}`} x1="0" y1="0" x2="0" y2="1">
+                      {stops}
+                    </linearGradient>
+                  )
+                })}
+                {state.layers.map((layer) => (
+                  layer.mask === 'full' ? null : (
+                    <mask key={layer.id} id={`b3d-mask-${layer.id}`} maskUnits="userSpaceOnUse" x="0" y="0" width={VB} height={VB}>
+                      <rect x="0" y="0" width={VB} height={VB} fill={`url(#b3d-maskgrad-${layer.id})`} />
+                    </mask>
+                  )
+                ))}
+              </defs>
+
+              <g filter="url(#b3d-shadow)">
+                <path d={outerPath} fill="url(#b3d-metal)" stroke="#0a1526" strokeWidth="2" />
+                <path d={bevelPath} fill="none" stroke="#ffffff" strokeOpacity="0.65" strokeWidth="2" />
+                <path d={pinstripePath} fill="none" stroke={state.frameAccent} strokeWidth="3.5" />
+
+                <g mask="url(#b3d-content-mask)">
+                  <rect x="0" y="0" width={VB} height={VB} fill="url(#b3d-bg)" />
+                  {state.layers.map((layer) => {
+                    if (!layer.visible) {
+                      return null
+                    }
+                    const size = VB * layer.scale
+                    return (
+                      <g
+                        key={layer.id}
+                        mask={layer.mask === 'full' ? undefined : `url(#b3d-mask-${layer.id})`}
+                        opacity={layer.opacity}
+                        style={{ mixBlendMode: layer.blend === 'normal' ? undefined : layer.blend }}
+                      >
+                        <image
+                          href={layer.src}
+                          x={CENTER - size / 2 + layer.x}
+                          y={CENTER - size / 2 + layer.y}
+                          width={size}
+                          height={size}
+                          preserveAspectRatio="xMidYMid slice"
+                          style={{
+                            filter: `brightness(${layer.brightness}) contrast(${layer.contrast}) saturate(${layer.saturation})`,
+                          }}
+                        />
+                      </g>
+                    )
+                  })}
+                  <rect
+                    x="0"
+                    y={VB - (VB * state.scrimHeight) / 100}
+                    width={VB}
+                    height={(VB * state.scrimHeight) / 100}
+                    fill="url(#b3d-scrim)"
+                  />
+                </g>
+
+                {/* Stage-1 canonical text placeholder; stage 3 replaces this with the full 3D text engine. */}
+                {state.year ? (
+                  <g fontFamily="'Oswald', sans-serif" textAnchor="middle">
+                    <text
+                      x={CENTER}
+                      y={CENTER + 46}
+                      fontSize="120"
+                      fontWeight="700"
+                      fill="#0b2545"
+                      opacity="0.9"
+                      transform="translate(0 7)"
+                    >
+                      {state.year}
+                    </text>
+                    <text
+                      x={CENTER}
+                      y={CENTER + 46}
+                      fontSize="120"
+                      fontWeight="700"
+                      fill="#f5f8ff"
+                      stroke="#0b2545"
+                      strokeWidth="10"
+                      paintOrder="stroke"
+                    >
+                      {state.year}
+                    </text>
+                  </g>
+                ) : null}
+                {state.line2 ? (
+                  <text
+                    x={CENTER}
+                    y={CENTER + 96}
+                    fontFamily="'Oswald', sans-serif"
+                    fontSize="30"
+                    fontWeight="600"
+                    letterSpacing="4"
+                    textAnchor="middle"
+                    fill="#eef3fb"
+                    stroke="#0b2545"
+                    strokeWidth="5"
+                    paintOrder="stroke"
+                  >
+                    {state.line2}
+                  </text>
+                ) : null}
+                {state.plateText ? (
+                  <g>
+                    <rect
+                      x={CENTER - 120}
+                      y={CENTER + 122}
+                      width="240"
+                      height="60"
+                      rx="16"
+                      fill="#101f3c"
+                      stroke="url(#b3d-metal)"
+                      strokeWidth="5"
+                    />
+                    <text
+                      x={state.flagCountry ? CENTER - 22 : CENTER}
+                      y={CENTER + 164}
+                      fontFamily="'Oswald', sans-serif"
+                      fontSize="38"
+                      fontWeight="700"
+                      letterSpacing="3"
+                      textAnchor="middle"
+                      fill="#f5f8ff"
+                    >
+                      {state.plateText}
+                    </text>
+                    {state.flagCountry ? (
+                      <image
+                        href={`https://flagcdn.com/${state.flagCountry}.svg`}
+                        x={CENTER + 52}
+                        y={CENTER + 134}
+                        width="52"
+                        height="36"
+                        preserveAspectRatio="xMidYMid slice"
+                      />
+                    ) : null}
+                  </g>
+                ) : null}
+              </g>
+            </svg>
+          </div>
+        </div>
+        {errorMessage ? <p className="badge3d-error">{errorMessage}</p> : null}
+      </main>
+    </>
+  )
+}
