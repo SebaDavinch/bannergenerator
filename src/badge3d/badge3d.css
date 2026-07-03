@@ -290,6 +290,58 @@
   gap: 8px;
 }
 
+.badge3d-auto-btn {
+  border-style: solid;
+  border-color: rgba(110, 168, 255, 0.55);
+  background: rgba(110, 168, 255, 0.12);
+  font-weight: 600;
+}
+
+.badge3d-auto-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.badge3d-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.badge3d-variant {
+  position: relative;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  aspect-ratio: 16 / 10;
+}
+
+.badge3d-variant:hover {
+  border-color: #6ea8ff;
+}
+
+.badge3d-variant img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.badge3d-variant span {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: rgba(4, 12, 24, 0.8);
+  color: #dce6f5;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .badge3d-preview-frame {
   display: flex;
   align-items: center;

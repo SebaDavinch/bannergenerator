@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import {
   BADGE3D_VIEWBOX,
@@ -25,6 +25,7 @@ import { FlagWaveBand, SideRibbon } from './FlagRibbon'
 import { extractFlagStripes, type FlagStripe } from './flagStripes'
 import { PlaneWithContrail, WingsEmblem, WingSeparator } from './decor'
 import { THEME_PRESETS } from './presets'
+import { generateVariants, type AutoVariant } from './autoGenerator'
 import './fonts'
 import './badge3d.css'
 
@@ -88,6 +89,13 @@ const STRINGS = {
     line2Label: 'Вторая строка',
     plateLabel: 'Текст плашки',
     flagLabel: 'Флаг (код страны, напр. ru)',
+    sectionAuto: 'Автогенератор',
+    autoEventLabel: 'Название ивента',
+    autoEventPlaceholder: 'Winter Ops',
+    autoButton: 'Собрать за меня',
+    autoGenerating: 'Собираю варианты…',
+    autoEmpty: 'Не удалось собрать варианты — проверьте город/сеть.',
+    autoHint: 'Город + название ивента → 3–4 готовых варианта. Клик по варианту применяет его, дальше всё редактируется.',
     sectionPresets: 'Темы',
     sectionRibbon: 'Флаговая лента',
     sectionPlane: 'Самолёт и декор',
@@ -173,6 +181,13 @@ const STRINGS = {
     line2Label: 'Second line',
     plateLabel: 'Plate text',
     flagLabel: 'Flag (country code, e.g. ru)',
+    sectionAuto: 'Auto-generator',
+    autoEventLabel: 'Event name',
+    autoEventPlaceholder: 'Winter Ops',
+    autoButton: 'Assemble for me',
+    autoGenerating: 'Assembling variants…',
+    autoEmpty: 'Could not assemble variants — check city/network.',
+    autoHint: 'City + event name → 3-4 ready variants. Click one to apply; everything stays editable.',
     sectionPresets: 'Themes',
     sectionRibbon: 'Flag ribbon',
     sectionPlane: 'Plane & decor',
@@ -313,6 +328,11 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
     }
   })
   const searchAbortRef = useRef<AbortController | null>(null)
+  const [autoEventName, setAutoEventName] = useState('')
+  const [autoVariants, setAutoVariants] = useState<AutoVariant[]>([])
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [autoStatus, setAutoStatus] = useState<'idle' | 'empty'>('idle')
+  const autoAbortRef = useRef<AbortController | null>(null)
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; layerX: number; layerY: number } | null>(null)
 
   useEffect(() => {
@@ -387,6 +407,41 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
     } finally {
       if (!controller.signal.aborted) {
         setIsSearching(false)
+      }
+    }
+  }
+
+  async function runAutoGenerate() {
+    if (!cityInput.trim()) {
+      return
+    }
+    autoAbortRef.current?.abort()
+    const controller = new AbortController()
+    autoAbortRef.current = controller
+    setIsAutoGenerating(true)
+    setAutoStatus('idle')
+    try {
+      const variants = await generateVariants({
+        city: cityInput,
+        eventName: autoEventName,
+        year: state.year,
+        callsign: state.plateText,
+        flagCountry: state.flagCountry,
+        keys: apiKeys,
+        signal: controller.signal,
+      })
+      if (!controller.signal.aborted) {
+        setAutoVariants(variants)
+        setAutoStatus(variants.length === 0 ? 'empty' : 'idle')
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setAutoVariants([])
+        setAutoStatus('empty')
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsAutoGenerating(false)
       }
     }
   }
@@ -586,6 +641,57 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
 
         <div className="panel-tab-content">
           <div className="tab-panel badge3d-panel">
+            <section className="badge3d-section">
+              <h3>{t.sectionAuto}</h3>
+              <p className="badge3d-hint">{t.autoHint}</p>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.cityLabel}</span>
+                  <input
+                    type="text"
+                    value={cityInput}
+                    placeholder={t.cityPlaceholder}
+                    onChange={(e) => setCityInput(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>{t.autoEventLabel}</span>
+                  <input
+                    type="text"
+                    value={autoEventName}
+                    placeholder={t.autoEventPlaceholder}
+                    onChange={(e) => setAutoEventName(e.target.value)}
+                  />
+                </label>
+              </div>
+              <button
+                className="badge3d-add-photo badge3d-auto-btn"
+                type="button"
+                disabled={isAutoGenerating || !cityInput.trim()}
+                onClick={() => void runAutoGenerate()}
+              >
+                <Sparkles size={14} />
+                <span>{isAutoGenerating ? t.autoGenerating : t.autoButton}</span>
+              </button>
+              {autoStatus === 'empty' ? <p className="badge3d-empty">{t.autoEmpty}</p> : null}
+              {autoVariants.length > 0 ? (
+                <div className="badge3d-variant-grid">
+                  {autoVariants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      className="badge3d-variant"
+                      type="button"
+                      title={variant.attribution}
+                      onClick={() => setState(variant.state)}
+                    >
+                      <img src={variant.photoThumb} alt="" loading="lazy" />
+                      <span>{locale === 'ru' ? variant.themeLabelRu : variant.themeLabelEn}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
             <section className="badge3d-section">
               <h3>{t.sectionPresets}</h3>
               <div className="badge3d-chip-row">
