@@ -1,4 +1,19 @@
+import { useMemo } from 'react'
 import { getBadgeFont, type TextMaterial } from './fonts'
+
+let measureContext: CanvasRenderingContext2D | null = null
+
+/** Measures per-character advances so arched glyphs can be laid out precisely. */
+function measureChars(text: string, font: string): number[] {
+  if (!measureContext) {
+    measureContext = document.createElement('canvas').getContext('2d')
+  }
+  if (!measureContext) {
+    return [...text].map(() => 0.6)
+  }
+  measureContext.font = font
+  return [...text].map((char) => measureContext!.measureText(char).width)
+}
 
 type Text3DProps = {
   text: string
@@ -61,15 +76,11 @@ export function Text3D({
   letterSpacing = 0,
   idSuffix,
 }: Text3DProps) {
-  if (!text) {
-    return null
-  }
   const font = getBadgeFont(fontFamily)
   const face = MATERIAL_FACE[material]
   const effectiveSize = size * font.sizeFactor
   const gradientId = `t3d-face-${idSuffix}`
   const glowId = `t3d-glow-${idSuffix}`
-  const archPathId = `t3d-arch-${idSuffix}`
   const outline = accent && material === 'flat' ? accent : face.outline
   const strokeWidth = Math.max(3, effectiveSize * 0.085)
   const depthSteps = Math.max(0, Math.round(depth))
@@ -78,21 +89,57 @@ export function Text3D({
     fontFamily,
     fontSize: effectiveSize,
     fontWeight: 700,
-    letterSpacing,
     textAnchor: 'middle' as const,
   }
 
-  // Arched variant renders along a shallow quadratic curve.
   const useArch = Math.abs(arch) > 1
-  const archHalfWidth = Math.max(text.length * effectiveSize * 0.36, effectiveSize)
+
+  // Per-character layout for the arch: glyphs are placed on a symmetric
+  // parabola with rotation following its slope — even and predictable,
+  // unlike textPath glyph distribution.
+  const archLayout = useMemo(() => {
+    if (!useArch) {
+      return null
+    }
+    const widths = measureChars(text, `700 ${effectiveSize}px ${fontFamily}`)
+    const advances = widths.map((w) => w + letterSpacing)
+    const total = advances.reduce((sum, w) => sum + w, 0) - (advances.length ? letterSpacing : 0)
+    const half = total / 2
+    let cursor = -half
+    return [...text].map((char, index) => {
+      const cx = cursor + widths[index] / 2
+      cursor += advances[index]
+      const tNorm = half > 0 ? cx / half : 0
+      // Parabola: y = -arch * (1 - t^2); slope drives glyph rotation.
+      const dy = -arch * (1 - tNorm * tNorm)
+      const angle = Math.atan2(2 * arch * tNorm, half) * (180 / Math.PI)
+      return { char, cx, dy, angle }
+    })
+  }, [useArch, text, effectiveSize, fontFamily, letterSpacing, arch])
+
+  if (!text) {
+    return null
+  }
 
   const renderLayer = (dy: number, fill: string, stroke?: string, filter?: string) =>
-    useArch ? (
-      <text {...common} fill={fill} stroke={stroke} strokeWidth={stroke ? strokeWidth : undefined} paintOrder="stroke" filter={filter} transform={`translate(0 ${dy})`}>
-        <textPath href={`#${archPathId}`} startOffset="50%">{text}</textPath>
-      </text>
+    useArch && archLayout ? (
+      <g filter={filter}>
+        {archLayout.map((glyph, index) => (
+          <text
+            key={index}
+            {...common}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={stroke ? strokeWidth : undefined}
+            paintOrder="stroke"
+            transform={`translate(${x + glyph.cx} ${y + glyph.dy + dy}) rotate(${glyph.angle.toFixed(2)})`}
+          >
+            {glyph.char}
+          </text>
+        ))}
+      </g>
     ) : (
-      <text {...common} x={x} y={y + dy} fill={fill} stroke={stroke} strokeWidth={stroke ? strokeWidth : undefined} paintOrder="stroke" filter={filter}>
+      <text {...common} letterSpacing={letterSpacing} x={x} y={y + dy} fill={fill} stroke={stroke} strokeWidth={stroke ? strokeWidth : undefined} paintOrder="stroke" filter={filter}>
         {text}
       </text>
     )
@@ -113,13 +160,6 @@ export function Text3D({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-        ) : null}
-        {useArch ? (
-          <path
-            id={archPathId}
-            d={`M ${x - archHalfWidth} ${y} Q ${x} ${y - arch * 2} ${x + archHalfWidth} ${y}`}
-            fill="none"
-          />
         ) : null}
       </defs>
       {/* Extrusion body: stacked dark copies. */}

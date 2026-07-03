@@ -1139,6 +1139,26 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                 <filter id="b3d-shadow" x="-15%" y="-15%" width="130%" height="130%">
                   <feDropShadow dx="0" dy="7" stdDeviation="9" floodColor="#020a14" floodOpacity="0.5" />
                 </filter>
+                {/* Sheen sweeping across the metal frame ring. */}
+                <linearGradient id="b3d-frame-sheen" x1="0" y1="0" x2="0.6" y2="1">
+                  <stop offset="0" stopColor="#ffffff" stopOpacity="0.85" />
+                  <stop offset="0.28" stopColor="#ffffff" stopOpacity="0.1" />
+                  <stop offset="0.55" stopColor="#000000" stopOpacity="0.12" />
+                  <stop offset="0.8" stopColor="#ffffff" stopOpacity="0.28" />
+                  <stop offset="1" stopColor="#000000" stopOpacity="0.18" />
+                </linearGradient>
+                {/* Ring-only mask: outer shape minus content window. */}
+                <mask id="b3d-frame-ring" maskUnits="userSpaceOnUse" x="0" y="0" width={VB} height={VB}>
+                  <path d={outerPath} fill="#ffffff" />
+                  <path d={innerPath} fill="#000000" />
+                </mask>
+                {/* Inner shadow so the photo sits "inside" the frame. */}
+                <linearGradient id="b3d-inner-shade" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#020a14" stopOpacity="0.55" />
+                  <stop offset="0.12" stopColor="#020a14" stopOpacity="0" />
+                  <stop offset="0.86" stopColor="#020a14" stopOpacity="0" />
+                  <stop offset="1" stopColor="#020a14" stopOpacity="0.4" />
+                </linearGradient>
                 {state.layers.map((layer) => {
                   if (layer.mask === 'full') {
                     return null
@@ -1179,8 +1199,11 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
 
               <g filter="url(#b3d-shadow)">
                 <path d={outerPath} fill="url(#b3d-metal)" stroke="#0a1526" strokeWidth="2" />
+                {/* Directional sheen across the ring only. */}
+                <rect x="0" y="0" width={VB} height={VB} fill="url(#b3d-frame-sheen)" mask="url(#b3d-frame-ring)" />
                 <path d={bevelPath} fill="none" stroke="#ffffff" strokeOpacity="0.65" strokeWidth="2" />
                 <path d={pinstripePath} fill="none" stroke={state.frameAccent} strokeWidth="3.5" />
+                <path d={pinstripePath} fill="none" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="1" transform="translate(0 -1.2)" />
 
                 <g mask="url(#b3d-content-mask)">
                   <rect x="0" y="0" width={VB} height={VB} fill="url(#b3d-bg)" />
@@ -1217,6 +1240,8 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                     height={(VB * state.scrimHeight) / 100}
                     fill="url(#b3d-scrim)"
                   />
+                  {/* Inner shadow: content recessed behind the frame. */}
+                  <rect x="0" y="0" width={VB} height={VB} fill="url(#b3d-inner-shade)" />
                 </g>
 
                 {/* Plane with contrail (above photos, below text). */}
@@ -1296,22 +1321,40 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   </g>
                 ) : null}
 
-                {/* Plate with callsign + flag chip. */}
+                {/* Plate with callsign + flag chip: metal bezel, inner glow,
+                    screws, glass sheen. */}
                 {state.plateText ? (
                   <g>
-                    <rect
-                      x={CENTER - 120}
-                      y={CENTER + 122}
-                      width="240"
-                      height="60"
-                      rx="16"
-                      fill="#101f3c"
-                      stroke="url(#b3d-metal)"
-                      strokeWidth="5"
-                    />
+                    <defs>
+                      <linearGradient id="b3d-plate-face" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#1a3157" />
+                        <stop offset="0.5" stopColor="#101f3c" />
+                        <stop offset="1" stopColor="#0a1630" />
+                      </linearGradient>
+                      <linearGradient id="b3d-plate-sheen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#ffffff" stopOpacity="0.22" />
+                        <stop offset="0.45" stopColor="#ffffff" stopOpacity="0.02" />
+                        <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {/* Drop shadow under the plate. */}
+                    <rect x={CENTER - 118} y={CENTER + 127} width="236" height="60" rx="16" fill="#020a14" opacity="0.45" />
+                    {/* Metal bezel. */}
+                    <rect x={CENTER - 122} y={CENTER + 120} width="244" height="64" rx="18" fill="url(#b3d-metal)" stroke="#0a1526" strokeWidth="1.5" />
+                    {/* Face. */}
+                    <rect x={CENTER - 115} y={CENTER + 127} width="230" height="50" rx="13" fill="url(#b3d-plate-face)" />
+                    {/* Inner accent line. */}
+                    <rect x={CENTER - 111} y={CENTER + 131} width="222" height="42" rx="10" fill="none" stroke={state.frameAccent} strokeOpacity="0.5" strokeWidth="1.2" />
+                    {/* Screws. */}
+                    {[-104, 104].map((dx) => (
+                      <g key={dx} transform={`translate(${CENTER + dx} ${CENTER + 152})`}>
+                        <circle r="4" fill="url(#b3d-metal)" stroke="#0a1526" strokeWidth="0.8" />
+                        <line x1="-2" y1="0" x2="2" y2="0" stroke="#0a1526" strokeWidth="1" transform={`rotate(${dx > 0 ? 60 : -30})`} />
+                      </g>
+                    ))}
                     <text
-                      x={state.flagCountry ? CENTER - 22 : CENTER}
-                      y={CENTER + 164}
+                      x={state.flagCountry ? CENTER - 24 : CENTER}
+                      y={CENTER + 166}
                       fontFamily="'Oswald', sans-serif"
                       fontSize="38"
                       fontWeight="700"
@@ -1322,15 +1365,21 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                       {state.plateText}
                     </text>
                     {state.flagCountry ? (
-                      <image
-                        href={flagUrl ?? undefined}
-                        x={CENTER + 52}
-                        y={CENTER + 134}
-                        width="52"
-                        height="36"
-                        preserveAspectRatio="xMidYMid slice"
-                      />
+                      <g>
+                        <rect x={CENTER + 46} y={CENTER + 135} width="58" height="38" rx="4" fill="#020a14" opacity="0.5" />
+                        <image
+                          href={flagUrl ?? undefined}
+                          x={CENTER + 48}
+                          y={CENTER + 136}
+                          width="54"
+                          height="36"
+                          preserveAspectRatio="xMidYMid slice"
+                        />
+                        <rect x={CENTER + 48} y={CENTER + 136} width="54" height="36" rx="3" fill="none" stroke="#e9eef5" strokeOpacity="0.55" strokeWidth="1.2" />
+                      </g>
                     ) : null}
+                    {/* Glass sheen on the upper half. */}
+                    <rect x={CENTER - 115} y={CENTER + 127} width="230" height="24" rx="12" fill="url(#b3d-plate-sheen)" />
                   </g>
                 ) : null}
               </g>

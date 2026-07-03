@@ -63,42 +63,63 @@ export function AirlinerTopView({ color = '#ffffff' }: { color?: string }) {
   )
 }
 
-/** Pilot wings emblem with a star, chrome-look. Local frame ~ -60..60 x -14..14. */
+/**
+ * Pilot wings emblem: five tapering feathers per side sweeping upward,
+ * faceted star on a laurel base. Local frame ~ -64..64 x -16..12.
+ */
 export function WingsEmblem({ color = '#e9eef5', idSuffix }: { color?: string; idSuffix: string }) {
   const gid = `wng-${idSuffix}`
+  const feathers = [0, 1, 2, 3, 4]
   return (
     <g>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ffffff" />
-          <stop offset="0.5" stopColor={color} />
-          <stop offset="1" stopColor="#8d9aab" />
+          <stop offset="0.45" stopColor={color} />
+          <stop offset="1" stopColor="#7d8a9c" />
         </linearGradient>
       </defs>
-      {/* Left wing: three feather bars. */}
-      {[0, 1, 2].map((i) => (
-        <g key={`l${i}`}>
-          <path
-            d={`M -12 ${-2 + i * 5} C ${-26 - i * 5} ${-6 + i * 5} ${-42 - i * 6} ${-4 + i * 5} ${-54 - i * 2} ${2 + i * 5} C ${-40 - i * 5} ${2 + i * 5} ${-24 - i * 3} ${4 + i * 4} -12 ${2 + i * 4} Z`}
-            fill={`url(#${gid})`}
-            stroke="#0a1526"
-            strokeWidth="0.8"
-          />
-          <path
-            d={`M 12 ${-2 + i * 5} C ${26 + i * 5} ${-6 + i * 5} ${42 + i * 6} ${-4 + i * 5} ${54 + i * 2} ${2 + i * 5} C ${40 + i * 5} ${2 + i * 5} ${24 + i * 3} ${4 + i * 4} 12 ${2 + i * 4} Z`}
-            fill={`url(#${gid})`}
-            stroke="#0a1526"
-            strokeWidth="0.8"
-          />
+      {[1, -1].map((dir) => (
+        <g key={dir} transform={dir === -1 ? 'scale(-1 1)' : undefined}>
+          {feathers.map((i) => {
+            // Each feather: starts near the star, sweeps out and up,
+            // shorter and lower as i grows (top feather is longest).
+            const baseX = 10
+            const baseY = -1 + i * 3.4
+            const tipX = 60 - i * 7
+            const tipY = -13 + i * 4.6
+            const midX = (baseX + tipX) * 0.55
+            return (
+              <path
+                key={i}
+                d={`M ${baseX} ${baseY}
+                    C ${midX} ${baseY - 4.5} ${tipX - 9} ${tipY - 2.5} ${tipX} ${tipY}
+                    C ${tipX - 4} ${tipY + 2.6} ${midX} ${baseY + 2.4} ${baseX} ${baseY + 2.6} Z`}
+                fill={`url(#${gid})`}
+                stroke="#0a1526"
+                strokeWidth="0.7"
+              />
+            )
+          })}
         </g>
       ))}
-      {/* Center star. */}
-      <path
-        d="M 0 -9 L 2.6 -2.9 L 9.2 -2.4 L 4.2 1.9 L 5.7 8.4 L 0 4.9 L -5.7 8.4 L -4.2 1.9 L -9.2 -2.4 L -2.6 -2.9 Z"
-        fill={`url(#${gid})`}
-        stroke="#0a1526"
-        strokeWidth="0.9"
-      />
+      {/* Star base disc. */}
+      <circle r="8.6" fill={`url(#${gid})`} stroke="#0a1526" strokeWidth="0.9" />
+      <circle r="6.8" fill="none" stroke="#0a1526" strokeWidth="0.5" strokeOpacity="0.5" />
+      {/* Faceted star: light/dark halves per point. */}
+      {[0, 1, 2, 3, 4].map((i) => {
+        const a = -90 + i * 72
+        const rad = (deg: number) => (deg * Math.PI) / 180
+        const tip = [Math.cos(rad(a)) * 7.4, Math.sin(rad(a)) * 7.4]
+        const left = [Math.cos(rad(a - 30)) * 2.9, Math.sin(rad(a - 30)) * 2.9]
+        const right = [Math.cos(rad(a + 30)) * 2.9, Math.sin(rad(a + 30)) * 2.9]
+        return (
+          <g key={i}>
+            <path d={`M ${tip[0]} ${tip[1]} L ${left[0]} ${left[1]} L 0 0 Z`} fill="#ffffff" />
+            <path d={`M ${tip[0]} ${tip[1]} L ${right[0]} ${right[1]} L 0 0 Z`} fill="#93a1b3" />
+          </g>
+        )
+      })}
     </g>
   )
 }
