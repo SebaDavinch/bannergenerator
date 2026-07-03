@@ -20,19 +20,60 @@ type FlagWaveProps = {
 
 const WAVE_SAMPLES = 96
 
-/**
- * Builds a horizontal displacement map (sine encoded in the green channel,
- * red pinned to 128 so dx stays 0) as an inline SVG data URI for feImage.
- */
-function buildWaveMap(waves: number, phase: number): string {
-  const stops: string[] = []
-  for (let index = 0; index <= WAVE_SAMPLES; index += 1) {
-    const t = index / WAVE_SAMPLES
-    // Inverted sine: feDisplacementMap samples the source at +dy, so visual
-    // offset is the negation — this keeps edges/shading formulas in +sin.
-    const g = Math.round((0.5 - 0.5 * Math.sin((t * waves + phase) * Math.PI * 2)) * 255)
-    stops.push(`<stop offset="${t.toFixed(4)}" stop-color="rgb(128,${g},0)"/>`)
+/** Catmull-Rom interpolation through control points (t in 0..1). */
+function catmullRom(points: Array<[number, number]>, t: number): number {
+  const n = points.length
+  const xs = points.map((p) => p[0])
+  let segment = 0
+  while (segment < n - 2 && t > xs[segment + 1]) {
+    segment += 1
   }
+  const p0 = points[Math.max(0, segment - 1)][1]
+  const p1 = points[segment][1]
+  const p2 = points[Math.min(n - 1, segment + 1)][1]
+  const p3 = points[Math.min(n - 1, segment + 2)][1]
+  const span = xs[segment + 1] - xs[segment] || 1
+  const u = Math.min(1, Math.max(0, (t - xs[segment]) / span))
+  const u2 = u * u
+  const u3 = u2 * u
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * u +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * u3)
+  )
+}
+
+/**
+ * Hand-authored ribbon centerlines (artist curves, not sines): asymmetric
+ * rhythm — long rise, sharp dip, relaxed tail. Values in -1..1, scaled by
+ * amplitude. Picked by the "waves" control (1 = classic S, 2+ = double).
+ */
+const AUTHORED_CURVES: Array<Array<[number, number]>> = [
+  // Classic S: high left shoulder, deep center-right dip, lifted tail.
+  [[0, -0.5], [0.16, 0.75], [0.4, 1.1], [0.62, -0.85], [0.84, -1.15], [1, -0.2]],
+  // Double wave: two unequal crests, like cloth pinched twice.
+  [[0, 0.35], [0.14, -0.95], [0.34, 0.7], [0.52, 1.15], [0.7, -0.6], [0.88, -1.05], [1, 0.1]],
+]
+
+/** Thickness profile: cloth widens in dips and tightens on crests. */
+function thicknessAt(value: number): number {
+  return 1 + 0.09 * value
+}
+
+/**
+ * Builds a horizontal displacement map (normalized curve values encoded in
+ * the green channel, red pinned to 128 so dx stays 0) for feImage.
+ * feDisplacementMap samples the source at +dy, so values are inverted.
+ */
+function buildWaveMapFromValues(values: number[], maxAbs: number): string {
+  const stops: string[] = []
+  values.forEach((value, index) => {
+    const t = index / (values.length - 1)
+    const g = Math.round((0.5 - (0.5 * value) / maxAbs) * 255)
+    stops.push(`<stop offset="${t.toFixed(4)}" stop-color="rgb(128,${g},0)"/>`)
+  })
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">` +
     `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">${stops.join('')}</linearGradient></defs>` +
@@ -56,10 +97,14 @@ export function FlagWaveBand({
   edgeColor = '#e9eef5',
   mirror = false,
 }: FlagWaveProps) {
+  const curve = AUTHORED_CURVES[waves >= 2 ? 1 : 0]
   const offsets: number[] = []
+  const normValues: number[] = []
   for (let index = 0; index <= WAVE_SAMPLES; index += 1) {
     const t = index / WAVE_SAMPLES
-    offsets.push(Math.sin((t * waves + phase) * Math.PI * 2) * amplitude)
+    const value = catmullRom(curve, (t + phase) % 1)
+    normValues.push(value)
+    offsets.push(value * amplitude)
   }
   const shadeId = `frw-shade-${idSuffix}`
   const sheenId = `frw-sheen-${idSuffix}`
@@ -67,20 +112,36 @@ export function FlagWaveBand({
   const clothId = `frw-cloth-${idSuffix}`
   const filterId = `frw-disp-${idSuffix}`
   const stepX = VB / WAVE_SAMPLES
+  const maxAbs = Math.max(...normValues.map((v) => Math.abs(v)), 0.001)
+  // Edges follow the authored curve with a varying cloth thickness.
   const edgeTop: string[] = []
   const edgeBottom: string[] = []
   offsets.forEach((offset, index) => {
     const x = index * stepX
-    edgeTop.push(`${index === 0 ? 'M' : 'L'} ${x} ${cy - height / 2 + offset}`)
-    edgeBottom.push(`${index === 0 ? 'M' : 'L'} ${x} ${cy + height / 2 + offset}`)
+    const th = (height * thicknessAt(normValues[index])) / 2
+    edgeTop.push(`${index === 0 ? 'M' : 'L'} ${x} ${cy - th + offset}`)
+    edgeBottom.push(`${index === 0 ? 'M' : 'L'} ${x} ${cy + th + offset}`)
   })
-  const pad = amplitude + 4
+  const pad = amplitude * maxAbs + height * 0.1 + 4
+  const lastTh = (height * thicknessAt(normValues[WAVE_SAMPLES])) / 2
   // Closed band outline reused by shadow / overlays / texture clip.
   const bandPath =
-    `${edgeTop.join(' ')} L ${VB} ${cy + height / 2 + offsets[WAVE_SAMPLES]} ` +
+    `${edgeTop.join(' ')} L ${VB} ${cy + lastTh + offsets[WAVE_SAMPLES]} ` +
     `${edgeBottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`
-  // Raw sine values (for crest-synced satin sheen).
-  const sines = offsets.map((offset) => (amplitude > 0 ? offset / amplitude : 0))
+  // Normalized curve values (for crest-synced satin sheen and fold accents).
+  const sines = normValues.map((v) => v / maxAbs)
+  // Local extrema of the centerline — where the artist would bake fold accents.
+  const extrema: Array<{ x: number; y: number; type: 'crest' | 'dip' }> = []
+  for (let index = 2; index < WAVE_SAMPLES - 1; index += 1) {
+    const prev = offsets[index - 1]
+    const cur = offsets[index]
+    const next = offsets[index + 1]
+    if (cur < prev && cur <= next) {
+      extrema.push({ x: index * stepX, y: cy + cur, type: 'crest' })
+    } else if (cur > prev && cur >= next) {
+      extrema.push({ x: index * stepX, y: cy + cur, type: 'dip' })
+    }
+  }
 
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
@@ -137,7 +198,7 @@ export function FlagWaveBand({
           height={height + pad * 2}
         >
           <feImage
-            href={buildWaveMap(waves, phase)}
+            href={buildWaveMapFromValues(normValues, maxAbs)}
             x={0}
             y={cy - height / 2 - pad}
             width={VB}
@@ -148,7 +209,7 @@ export function FlagWaveBand({
           <feDisplacementMap
             in="SourceGraphic"
             in2="map"
-            scale={amplitude * 2}
+            scale={amplitude * maxAbs * 2}
             xChannelSelector="R"
             yChannelSelector="G"
           />
@@ -175,6 +236,22 @@ export function FlagWaveBand({
       <path d={bandPath} fill={`url(#${volumeId})`} />
       {/* Woven texture. */}
       <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.025" style={{ mixBlendMode: 'overlay' }} />
+      {/* Baked fold accents at curve extrema: soft highlight on crests,
+          soft occlusion in dips — the hand-drawn ribbon look. */}
+      <g style={{ mixBlendMode: 'soft-light' }}>
+        {extrema.map((point, index) => (
+          <ellipse
+            key={index}
+            cx={point.x}
+            cy={point.y}
+            rx={height * 1.1}
+            ry={height * 0.62}
+            fill={point.type === 'crest' ? '#ffffff' : '#0a1526'}
+            opacity={point.type === 'crest' ? 0.5 : 0.4}
+            style={{ filter: 'blur(10px)' }}
+          />
+        ))}
+      </g>
       {/* Edge accents: dark seam + thin metal highlight. */}
       <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
       <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
