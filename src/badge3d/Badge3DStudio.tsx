@@ -7,13 +7,23 @@ import {
   createPhotoLayer,
   type Badge3DShape,
   type Badge3DState,
+  type ContrailVariant,
   type FrameMaterial,
   type PhotoLayer,
   type PhotoLayerBlend,
   type PhotoLayerMask,
+  type RibbonPlacement,
+  type TextMaterialId,
+  flagUrlFor,
 } from './types'
 import { fetchAsDataUrl, searchAllSources, type PhotoCandidate, type PhotoSourceKeys } from './photoSearch'
 import { findCityBackdrops } from './cityBackdrops'
+import { BADGE_FONTS, TEXT_MATERIALS } from './fonts'
+import { Text3D } from './Text3D'
+import { FlagWaveBand, SideRibbon } from './FlagRibbon'
+import { PlaneWithContrail, WingsEmblem, WingSeparator } from './decor'
+import { THEME_PRESETS } from './presets'
+import './fonts'
 import './badge3d.css'
 
 const STORAGE_KEY = 'badge3dSettingsV1'
@@ -76,6 +86,31 @@ const STRINGS = {
     line2Label: 'Вторая строка',
     plateLabel: 'Текст плашки',
     flagLabel: 'Флаг (код страны, напр. ru)',
+    sectionPresets: 'Темы',
+    sectionRibbon: 'Флаговая лента',
+    sectionPlane: 'Самолёт и декор',
+    fontLabel: 'Шрифт',
+    materialLabel: 'Материал',
+    sizeLabel: 'Размер',
+    depthLabel: 'Глубина 3D',
+    archLabel: 'Дуга',
+    positionYLabel: 'Позиция по вертикали',
+    wingsLabel: 'Крылья-разделители',
+    ribbonNone: 'Нет',
+    ribbonBottom: 'Волна снизу',
+    ribbonSides: 'По краям',
+    ribbonLeft: 'Слева',
+    ribbonRight: 'Справа',
+    amplitudeLabel: 'Амплитуда волны',
+    wavesLabel: 'Число волн',
+    ribbonHeightLabel: 'Высота ленты',
+    planeLabel: 'Самолёт с трейлом',
+    planeArc: 'Дуга',
+    planeClimb: 'Набор высоты',
+    planeLoop: 'Петля',
+    planeScaleLabel: 'Масштаб самолёта',
+    wingsTopLabel: 'Эмблема-крылья сверху',
+    latinOnly: 'лат.',
     exportButton: 'Скачать PNG 200×200',
     exporting: 'Экспорт…',
     previewLabel: 'Превью',
@@ -134,6 +169,31 @@ const STRINGS = {
     line2Label: 'Second line',
     plateLabel: 'Plate text',
     flagLabel: 'Flag (country code, e.g. ru)',
+    sectionPresets: 'Themes',
+    sectionRibbon: 'Flag ribbon',
+    sectionPlane: 'Plane & decor',
+    fontLabel: 'Font',
+    materialLabel: 'Material',
+    sizeLabel: 'Size',
+    depthLabel: '3D depth',
+    archLabel: 'Arch',
+    positionYLabel: 'Vertical position',
+    wingsLabel: 'Wing separators',
+    ribbonNone: 'None',
+    ribbonBottom: 'Bottom wave',
+    ribbonSides: 'Both sides',
+    ribbonLeft: 'Left',
+    ribbonRight: 'Right',
+    amplitudeLabel: 'Wave amplitude',
+    wavesLabel: 'Wave count',
+    ribbonHeightLabel: 'Ribbon height',
+    planeLabel: 'Plane with contrail',
+    planeArc: 'Arc',
+    planeClimb: 'Climb',
+    planeLoop: 'Loop',
+    planeScaleLabel: 'Plane scale',
+    wingsTopLabel: 'Wings emblem on top',
+    latinOnly: 'latin',
     exportButton: 'Download PNG 200×200',
     exporting: 'Exporting…',
     previewLabel: 'Preview',
@@ -264,6 +324,7 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
 
   const selectedLayer = state.layers.find((layer) => layer.id === state.selectedLayerId) ?? null
   const cityChips = useMemo(() => findCityBackdrops(cityInput), [cityInput])
+  const flagUrl = state.flagCountry.length === 2 ? flagUrlFor(state.flagCountry) : null
 
   function updateApiKey(key: keyof PhotoSourceKeys, value: string) {
     setApiKeys((prev) => {
@@ -501,6 +562,22 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
 
         <div className="panel-tab-content">
           <div className="tab-panel badge3d-panel">
+            <section className="badge3d-section">
+              <h3>{t.sectionPresets}</h3>
+              <div className="badge3d-chip-row">
+                {THEME_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className="badge3d-chip"
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, ...preset.patch }))}
+                  >
+                    {locale === 'ru' ? preset.labelRu : preset.labelEn}
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <section className="badge3d-section">
               <h3>{t.sectionShape}</h3>
               <div className="badge3d-choice-grid" role="group" aria-label={t.sectionShape}>
@@ -816,19 +893,26 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
             </section>
 
             <section className="badge3d-section">
-              <h3>{t.sectionText}</h3>
-              <label className="field">
-                <span>{t.yearLabel}</span>
-                <input type="text" value={state.year} maxLength={8} onChange={(e) => update('year', e.target.value)} />
-              </label>
-              <label className="field">
-                <span>{t.line2Label}</span>
-                <input type="text" value={state.line2} maxLength={26} onChange={(e) => update('line2', e.target.value)} />
-              </label>
-              <label className="field">
-                <span>{t.plateLabel}</span>
-                <input type="text" value={state.plateText} maxLength={12} onChange={(e) => update('plateText', e.target.value)} />
-              </label>
+              <h3>{t.sectionRibbon}</h3>
+              <div className="badge3d-choice-grid badge3d-choice-grid-5">
+                {([
+                  ['none', t.ribbonNone],
+                  ['bottom', t.ribbonBottom],
+                  ['sides', t.ribbonSides],
+                  ['left', t.ribbonLeft],
+                  ['right', t.ribbonRight],
+                ] as Array<[RibbonPlacement, string]>).map(([placement, label]) => (
+                  <button
+                    key={placement}
+                    className={`badge3d-choice${state.ribbonPlacement === placement ? ' is-active' : ''}`}
+                    type="button"
+                    onClick={() => update('ribbonPlacement', placement)}
+                    aria-pressed={state.ribbonPlacement === placement}
+                  >
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
               <label className="field">
                 <span>{t.flagLabel}</span>
                 <input
@@ -837,6 +921,165 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   maxLength={2}
                   onChange={(e) => update('flagCountry', e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
                 />
+              </label>
+              {state.ribbonPlacement === 'bottom' ? (
+                <>
+                  <div className="badge3d-two-fields">
+                    <label className="field">
+                      <span>{t.amplitudeLabel}: {state.ribbonAmplitude}</span>
+                      <input type="range" min={4} max={30} step={1} value={state.ribbonAmplitude} onChange={(e) => update('ribbonAmplitude', Number(e.target.value))} />
+                    </label>
+                    <label className="field">
+                      <span>{t.wavesLabel}: {state.ribbonWaves}</span>
+                      <input type="range" min={0.75} max={3} step={0.25} value={state.ribbonWaves} onChange={(e) => update('ribbonWaves', Number(e.target.value))} />
+                    </label>
+                  </div>
+                  <div className="badge3d-two-fields">
+                    <label className="field">
+                      <span>{t.ribbonHeightLabel}: {state.ribbonHeight}</span>
+                      <input type="range" min={28} max={90} step={2} value={state.ribbonHeight} onChange={(e) => update('ribbonHeight', Number(e.target.value))} />
+                    </label>
+                    <label className="field">
+                      <span>{t.positionYLabel}: {state.ribbonY}</span>
+                      <input type="range" min={360} max={500} step={2} value={state.ribbonY} onChange={(e) => update('ribbonY', Number(e.target.value))} />
+                    </label>
+                  </div>
+                </>
+              ) : null}
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionPlane}</h3>
+              <label className="field badge3d-checkbox">
+                <input type="checkbox" checked={state.planeEnabled} onChange={(e) => update('planeEnabled', e.target.checked)} />
+                <span>{t.planeLabel}</span>
+              </label>
+              {state.planeEnabled ? (
+                <>
+                  <div className="badge3d-choice-grid">
+                    {([
+                      ['arc', t.planeArc],
+                      ['climb', t.planeClimb],
+                      ['loop', t.planeLoop],
+                    ] as Array<[ContrailVariant, string]>).map(([variant, label]) => (
+                      <button
+                        key={variant}
+                        className={`badge3d-choice${state.planeVariant === variant ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => update('planeVariant', variant)}
+                        aria-pressed={state.planeVariant === variant}
+                      >
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="badge3d-two-fields">
+                    <label className="field">
+                      <span>X: {state.planeX}</span>
+                      <input type="range" min={80} max={470} step={4} value={state.planeX} onChange={(e) => update('planeX', Number(e.target.value))} />
+                    </label>
+                    <label className="field">
+                      <span>Y: {state.planeY}</span>
+                      <input type="range" min={40} max={220} step={4} value={state.planeY} onChange={(e) => update('planeY', Number(e.target.value))} />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span>{t.planeScaleLabel}: {state.planeScale.toFixed(2)}</span>
+                    <input type="range" min={0.4} max={1.6} step={0.05} value={state.planeScale} onChange={(e) => update('planeScale', Number(e.target.value))} />
+                  </label>
+                </>
+              ) : null}
+              <label className="field badge3d-checkbox">
+                <input type="checkbox" checked={state.wingsTopEnabled} onChange={(e) => update('wingsTopEnabled', e.target.checked)} />
+                <span>{t.wingsTopLabel}</span>
+              </label>
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionText}</h3>
+              <label className="field">
+                <span>{t.yearLabel}</span>
+                <input type="text" value={state.year} maxLength={8} onChange={(e) => update('year', e.target.value)} />
+              </label>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.fontLabel}</span>
+                  <select value={state.yearFont} onChange={(e) => update('yearFont', e.target.value)}>
+                    {BADGE_FONTS.map((font) => (
+                      <option key={font.family} value={font.family}>
+                        {font.label}{font.cyrillic ? '' : ` (${t.latinOnly})`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>{t.materialLabel}</span>
+                  <select value={state.yearMaterial} onChange={(e) => update('yearMaterial', e.target.value as TextMaterialId)}>
+                    {TEXT_MATERIALS.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {locale === 'ru' ? material.labelRu : material.labelEn}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="field">
+                <span>{t.sizeLabel}: {state.yearSize}px</span>
+                <input type="range" min={60} max={180} step={2} value={state.yearSize} onChange={(e) => update('yearSize', Number(e.target.value))} />
+              </label>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.depthLabel}: {state.yearDepth}</span>
+                  <input type="range" min={0} max={16} step={1} value={state.yearDepth} onChange={(e) => update('yearDepth', Number(e.target.value))} />
+                </label>
+                <label className="field">
+                  <span>{t.archLabel}: {state.yearArch}</span>
+                  <input type="range" min={0} max={24} step={1} value={state.yearArch} onChange={(e) => update('yearArch', Number(e.target.value))} />
+                </label>
+              </div>
+              <label className="field">
+                <span>{t.positionYLabel}: {state.yearY}</span>
+                <input type="range" min={140} max={420} step={2} value={state.yearY} onChange={(e) => update('yearY', Number(e.target.value))} />
+              </label>
+              <label className="field">
+                <span>{t.line2Label}</span>
+                <input type="text" value={state.line2} maxLength={26} onChange={(e) => update('line2', e.target.value)} />
+              </label>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.fontLabel}</span>
+                  <select value={state.line2Font} onChange={(e) => update('line2Font', e.target.value)}>
+                    {BADGE_FONTS.map((font) => (
+                      <option key={font.family} value={font.family}>
+                        {font.label}{font.cyrillic ? '' : ` (${t.latinOnly})`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>{t.materialLabel}</span>
+                  <select value={state.line2Material} onChange={(e) => update('line2Material', e.target.value as TextMaterialId)}>
+                    {TEXT_MATERIALS.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {locale === 'ru' ? material.labelRu : material.labelEn}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.sizeLabel}: {state.line2Size}px</span>
+                  <input type="range" min={16} max={56} step={1} value={state.line2Size} onChange={(e) => update('line2Size', Number(e.target.value))} />
+                </label>
+                <label className="field badge3d-checkbox">
+                  <input type="checkbox" checked={state.line2Wings} onChange={(e) => update('line2Wings', e.target.checked)} />
+                  <span>{t.wingsLabel}</span>
+                </label>
+              </div>
+              <label className="field">
+                <span>{t.plateLabel}</span>
+                <input type="text" value={state.plateText} maxLength={12} onChange={(e) => update('plateText', e.target.value)} />
               </label>
             </section>
           </div>
@@ -976,51 +1219,84 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   />
                 </g>
 
-                {/* Stage-1 canonical text placeholder; stage 3 replaces this with the full 3D text engine. */}
-                {state.year ? (
-                  <g fontFamily="'Oswald', sans-serif" textAnchor="middle">
-                    <text
-                      x={CENTER}
-                      y={CENTER + 46}
-                      fontSize="120"
-                      fontWeight="700"
-                      fill="#0b2545"
-                      opacity="0.9"
-                      transform="translate(0 7)"
-                    >
-                      {state.year}
-                    </text>
-                    <text
-                      x={CENTER}
-                      y={CENTER + 46}
-                      fontSize="120"
-                      fontWeight="700"
-                      fill="#f5f8ff"
-                      stroke="#0b2545"
-                      strokeWidth="10"
-                      paintOrder="stroke"
-                    >
-                      {state.year}
-                    </text>
+                {/* Plane with contrail (above photos, below text). */}
+                {state.planeEnabled ? (
+                  <g mask="url(#b3d-content-mask)">
+                    <g transform={`translate(${state.planeX} ${state.planeY}) scale(${state.planeScale})`}>
+                      <PlaneWithContrail variant={state.planeVariant} idSuffix="main" />
+                    </g>
                   </g>
                 ) : null}
-                {state.line2 ? (
-                  <text
-                    x={CENTER}
-                    y={CENTER + 96}
-                    fontFamily="'Oswald', sans-serif"
-                    fontSize="30"
-                    fontWeight="600"
-                    letterSpacing="4"
-                    textAnchor="middle"
-                    fill="#eef3fb"
-                    stroke="#0b2545"
-                    strokeWidth="5"
-                    paintOrder="stroke"
-                  >
-                    {state.line2}
-                  </text>
+
+                {/* Flag ribbons: bottom wave is masked to the badge content;
+                    side ribbons intentionally overlap the frame for depth. */}
+                {flagUrl && state.ribbonPlacement === 'bottom' ? (
+                  <g mask="url(#b3d-content-mask)">
+                    <FlagWaveBand
+                      flagUrl={flagUrl}
+                      cy={state.ribbonY}
+                      height={state.ribbonHeight}
+                      amplitude={state.ribbonAmplitude}
+                      waves={state.ribbonWaves}
+                      idSuffix="bottom"
+                    />
+                  </g>
                 ) : null}
+                {flagUrl && (state.ribbonPlacement === 'sides' || state.ribbonPlacement === 'left') ? (
+                  <SideRibbon flagUrl={flagUrl} side="left" idSuffix="left" />
+                ) : null}
+                {flagUrl && (state.ribbonPlacement === 'sides' || state.ribbonPlacement === 'right') ? (
+                  <SideRibbon flagUrl={flagUrl} side="right" idSuffix="right" />
+                ) : null}
+
+                {/* Wings emblem at the top. */}
+                {state.wingsTopEnabled ? (
+                  <g transform={`translate(${CENTER} 58) scale(1.15)`}>
+                    <WingsEmblem idSuffix="top" />
+                  </g>
+                ) : null}
+
+                {/* 3D year. */}
+                <Text3D
+                  text={state.year}
+                  x={CENTER}
+                  y={state.yearY}
+                  size={state.yearSize}
+                  fontFamily={state.yearFont}
+                  material={state.yearMaterial}
+                  depth={state.yearDepth}
+                  arch={state.yearArch}
+                  idSuffix="year"
+                />
+
+                {/* Second line with optional wing separators. */}
+                {state.line2 ? (
+                  <g>
+                    <Text3D
+                      text={state.line2}
+                      x={CENTER}
+                      y={state.yearY + state.yearSize * 0.42}
+                      size={state.line2Size}
+                      fontFamily={state.line2Font}
+                      material={state.line2Material}
+                      depth={Math.min(3, Math.round(state.yearDepth / 3))}
+                      letterSpacing={3}
+                      idSuffix="line2"
+                    />
+                    {state.line2Wings ? (
+                      <>
+                        <g transform={`translate(${CENTER - state.line2.length * state.line2Size * 0.34 - 20} ${state.yearY + state.yearSize * 0.42 - state.line2Size * 0.3})`}>
+                          <WingSeparator side="left" />
+                        </g>
+                        <g transform={`translate(${CENTER + state.line2.length * state.line2Size * 0.34 + 20} ${state.yearY + state.yearSize * 0.42 - state.line2Size * 0.3})`}>
+                          <WingSeparator side="right" />
+                        </g>
+                      </>
+                    ) : null}
+                  </g>
+                ) : null}
+
+                {/* Plate with callsign + flag chip. */}
                 {state.plateText ? (
                   <g>
                     <rect
@@ -1047,7 +1323,7 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                     </text>
                     {state.flagCountry ? (
                       <image
-                        href={`https://flagcdn.com/${state.flagCountry}.svg`}
+                        href={flagUrl ?? undefined}
                         x={CENTER + 52}
                         y={CENTER + 134}
                         width="52"

@@ -25,6 +25,10 @@ export type PhotoLayer = {
   visible: boolean
 }
 
+export type RibbonPlacement = 'none' | 'bottom' | 'sides' | 'left' | 'right'
+export type ContrailVariant = 'arc' | 'climb' | 'loop'
+export type TextMaterialId = 'chrome' | 'gold' | 'enamel' | 'neon' | 'flat'
+
 export type Badge3DState = {
   shape: Badge3DShape
   frameMaterial: FrameMaterial
@@ -40,9 +44,34 @@ export type Badge3DState = {
   line2: string
   plateText: string
   flagCountry: string
+  yearFont: string
+  yearSize: number
+  yearMaterial: TextMaterialId
+  yearDepth: number
+  yearArch: number
+  yearY: number
+  line2Font: string
+  line2Size: number
+  line2Material: TextMaterialId
+  line2Wings: boolean
+  ribbonPlacement: RibbonPlacement
+  ribbonAmplitude: number
+  ribbonWaves: number
+  ribbonHeight: number
+  ribbonY: number
+  planeEnabled: boolean
+  planeVariant: ContrailVariant
+  planeX: number
+  planeY: number
+  planeScale: number
+  wingsTopEnabled: boolean
 }
 
 export const BADGE3D_VIEWBOX = 512
+
+export function flagUrlFor(country: string): string {
+  return `https://flagcdn.com/${country}.svg`
+}
 
 export function createPhotoLayer(src: string, label: string): PhotoLayer {
   return {
@@ -79,5 +108,26 @@ export function createDefaultBadge3DState(): Badge3DState {
     line2: 'EVENT PARTICIPANT',
     plateText: 'URSS',
     flagCountry: 'ru',
+    yearFont: "'Russo One', sans-serif",
+    yearSize: 120,
+    yearMaterial: 'chrome',
+    yearDepth: 8,
+    yearArch: 6,
+    yearY: 302,
+    line2Font: "'Oswald', sans-serif",
+    line2Size: 30,
+    line2Material: 'chrome',
+    line2Wings: true,
+    ribbonPlacement: 'bottom',
+    ribbonAmplitude: 14,
+    ribbonWaves: 1.25,
+    ribbonHeight: 46,
+    ribbonY: 448,
+    planeEnabled: true,
+    planeVariant: 'arc',
+    planeX: 388,
+    planeY: 86,
+    planeScale: 0.85,
+    wingsTopEnabled: false,
   }
 }
