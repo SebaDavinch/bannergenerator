@@ -93,10 +93,10 @@ export function FlagWaveBand({
             const t = index / WAVE_SAMPLES
             const next = offsets[Math.min(index + 1, WAVE_SAMPLES)]
             const slope = (next - offset) / stepX
-            const light = Math.max(-0.55, Math.min(0.45, -slope * 2.2))
+            const light = Math.max(-0.3, Math.min(0.3, -slope * 1.4))
             const color = light >= 0
-              ? `rgba(255,255,255,${(light * 0.55).toFixed(3)})`
-              : `rgba(8,16,32,${(-light * 0.6).toFixed(3)})`
+              ? `rgba(255,255,255,${(light * 0.4).toFixed(3)})`
+              : `rgba(8,16,32,${(-light * 0.45).toFixed(3)})`
             return <stop key={index} offset={t} stopColor={color} />
           })}
         </linearGradient>
@@ -108,16 +108,16 @@ export function FlagWaveBand({
             }
             const t = index / WAVE_SAMPLES
             const crest = Math.max(0, value)
-            const alpha = (crest * crest * 0.3).toFixed(3)
+            const alpha = (crest * crest * 0.14).toFixed(3)
             return <stop key={index} offset={t} stopColor={`rgba(255,255,255,${alpha})`} />
           })}
         </linearGradient>
         {/* Vertical volume: lit top edge, occluded bottom edge. */}
         <linearGradient id={volumeId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0.22" />
-          <stop offset="0.25" stopColor="#ffffff" stopOpacity="0.04" />
-          <stop offset="0.72" stopColor="#08101f" stopOpacity="0.06" />
-          <stop offset="1" stopColor="#08101f" stopOpacity="0.32" />
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.14" />
+          <stop offset="0.3" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="0.8" stopColor="#08101f" stopOpacity="0" />
+          <stop offset="1" stopColor="#08101f" stopOpacity="0.16" />
         </linearGradient>
         {/* Woven cloth texture, clipped to the band. */}
         <filter id={clothId} filterUnits="userSpaceOnUse" x={-8} y={cy - height / 2 - pad} width={VB + 16} height={height + pad * 2}>
@@ -174,7 +174,7 @@ export function FlagWaveBand({
       {/* Vertical cloth volume. */}
       <path d={bandPath} fill={`url(#${volumeId})`} />
       {/* Woven texture. */}
-      <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.05" style={{ mixBlendMode: 'overlay' }} />
+      <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.025" style={{ mixBlendMode: 'overlay' }} />
       {/* Edge accents: dark seam + thin metal highlight. */}
       <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
       <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
