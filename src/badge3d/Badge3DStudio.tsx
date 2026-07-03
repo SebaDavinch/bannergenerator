@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Plus, Search, Trash2 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import {
   BADGE3D_VIEWBOX,
@@ -12,9 +12,12 @@ import {
   type PhotoLayerBlend,
   type PhotoLayerMask,
 } from './types'
+import { fetchAsDataUrl, searchAllSources, type PhotoCandidate, type PhotoSourceKeys } from './photoSearch'
+import { findCityBackdrops } from './cityBackdrops'
 import './badge3d.css'
 
 const STORAGE_KEY = 'badge3dSettingsV1'
+const KEYS_STORAGE_KEY = 'badge3dApiKeysV1'
 const VB = BADGE3D_VIEWBOX
 const CENTER = VB / 2
 
@@ -25,6 +28,18 @@ const STRINGS = {
     tabBanner: 'Баннер',
     tabBadge: 'Бейдж',
     tabBadge3d: '3D Бейдж',
+    sectionSearch: 'Поиск фото',
+    cityLabel: 'Город / IATA',
+    cityPlaceholder: 'Сочи, AER…',
+    queryLabel: 'Запрос',
+    queryPlaceholder: 'Sochi Olympic park sunset',
+    searchButton: 'Искать',
+    searching: 'Ищу…',
+    searchEmpty: 'Ничего не нашлось — попробуйте другой запрос или чип локации.',
+    searchError: 'Поиск не удался. Проверьте сеть/ключи и попробуйте снова.',
+    addingPhoto: 'Загружаю кадр…',
+    apiKeysLabel: 'API-ключи фотостоков (опционально)',
+    apiKeysHelp: 'Бесплатные ключи Pexels / Pixabay / Unsplash расширяют выдачу. Без них работают Wikimedia и Openverse.',
     sectionShape: 'Форма и рамка',
     sectionLayers: 'Фото-слои',
     sectionBackground: 'Фон-заливка',
@@ -71,6 +86,18 @@ const STRINGS = {
     tabBanner: 'Banner',
     tabBadge: 'Badge',
     tabBadge3d: '3D Badge',
+    sectionSearch: 'Photo search',
+    cityLabel: 'City / IATA',
+    cityPlaceholder: 'Sochi, AER…',
+    queryLabel: 'Query',
+    queryPlaceholder: 'Sochi Olympic park sunset',
+    searchButton: 'Search',
+    searching: 'Searching…',
+    searchEmpty: 'Nothing found — try another query or a location chip.',
+    searchError: 'Search failed. Check network/keys and try again.',
+    addingPhoto: 'Downloading photo…',
+    apiKeysLabel: 'Stock API keys (optional)',
+    apiKeysHelp: 'Free Pexels / Pixabay / Unsplash keys widen the results. Wikimedia and Openverse work without keys.',
     sectionShape: 'Shape & frame',
     sectionLayers: 'Photo layers',
     sectionBackground: 'Background fill',
@@ -199,6 +226,27 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
   const [errorMessage, setErrorMessage] = useState('')
   const previewRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [cityInput, setCityInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<PhotoCandidate[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'empty' | 'error'>('idle')
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false)
+  const [apiKeys, setApiKeys] = useState<PhotoSourceKeys>(() => {
+    try {
+      const raw = window.localStorage.getItem(KEYS_STORAGE_KEY)
+      const stored = raw ? (JSON.parse(raw) as PhotoSourceKeys) : {}
+      const env = import.meta.env as Record<string, string | undefined>
+      return {
+        pexels: stored.pexels || env.VITE_PEXELS_KEY || '',
+        pixabay: stored.pixabay || env.VITE_PIXABAY_KEY || '',
+        unsplash: stored.unsplash || env.VITE_UNSPLASH_KEY || '',
+      }
+    } catch {
+      return {}
+    }
+  })
+  const searchAbortRef = useRef<AbortController | null>(null)
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; layerX: number; layerY: number } | null>(null)
 
   useEffect(() => {
@@ -215,6 +263,66 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
   }, [state])
 
   const selectedLayer = state.layers.find((layer) => layer.id === state.selectedLayerId) ?? null
+  const cityChips = useMemo(() => findCityBackdrops(cityInput), [cityInput])
+
+  function updateApiKey(key: keyof PhotoSourceKeys, value: string) {
+    setApiKeys((prev) => {
+      const next = { ...prev, [key]: value.trim() }
+      try {
+        window.localStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // Non-fatal: keys just will not persist.
+      }
+      return next
+    })
+  }
+
+  async function runSearch(query: string) {
+    const trimmed = query.trim()
+    if (!trimmed) {
+      return
+    }
+    searchAbortRef.current?.abort()
+    const controller = new AbortController()
+    searchAbortRef.current = controller
+    setIsSearching(true)
+    setSearchStatus('idle')
+    try {
+      const results = await searchAllSources(trimmed, apiKeys, controller.signal)
+      if (controller.signal.aborted) {
+        return
+      }
+      setSearchResults(results)
+      setSearchStatus(results.length === 0 ? 'empty' : 'idle')
+    } catch {
+      if (!controller.signal.aborted) {
+        setSearchResults([])
+        setSearchStatus('error')
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsSearching(false)
+      }
+    }
+  }
+
+  async function addCandidateAsLayer(candidate: PhotoCandidate) {
+    setIsAddingPhoto(true)
+    try {
+      let src: string
+      try {
+        src = await fetchAsDataUrl(candidate.fullUrl)
+      } catch {
+        src = await fetchAsDataUrl(candidate.thumbUrl)
+      }
+      const layer = createPhotoLayer(src, candidate.attribution)
+      setState((prev) => ({ ...prev, layers: [...prev.layers, layer], selectedLayerId: layer.id }))
+    } catch {
+      setSearchStatus('error')
+    } finally {
+      setIsAddingPhoto(false)
+    }
+  }
 
   function update<K extends keyof Badge3DState>(key: K, value: Badge3DState[K]) {
     setState((prev) => ({ ...prev, [key]: value }))
@@ -440,6 +548,107 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   onChange={(e) => update('frameWidth', Number(e.target.value))}
                 />
               </label>
+            </section>
+
+            <section className="badge3d-section">
+              <h3>{t.sectionSearch}</h3>
+              <div className="badge3d-two-fields">
+                <label className="field">
+                  <span>{t.cityLabel}</span>
+                  <input
+                    type="text"
+                    value={cityInput}
+                    placeholder={t.cityPlaceholder}
+                    onChange={(e) => setCityInput(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>{t.queryLabel}</span>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    placeholder={t.queryPlaceholder}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        void runSearch(searchQuery)
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              {cityChips ? (
+                <div className="badge3d-chip-row">
+                  {cityChips.chips.map((chip) => (
+                    <button
+                      key={chip.query}
+                      className="badge3d-chip"
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(chip.query)
+                        void runSearch(chip.query)
+                      }}
+                    >
+                      {locale === 'ru' ? chip.label : chip.labelEn}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <button
+                className="badge3d-add-photo"
+                type="button"
+                disabled={isSearching}
+                onClick={() => void runSearch(searchQuery)}
+              >
+                <Search size={14} />
+                <span>{isSearching ? t.searching : t.searchButton}</span>
+              </button>
+              {searchStatus === 'empty' ? <p className="badge3d-empty">{t.searchEmpty}</p> : null}
+              {searchStatus === 'error' ? <p className="badge3d-empty">{t.searchError}</p> : null}
+              {isAddingPhoto ? <p className="badge3d-empty">{t.addingPhoto}</p> : null}
+              {searchResults.length > 0 ? (
+                <div className="badge3d-results-grid">
+                  {searchResults.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      className="badge3d-result"
+                      type="button"
+                      title={`${candidate.title} — ${candidate.attribution}`}
+                      disabled={isAddingPhoto}
+                      onClick={() => void addCandidateAsLayer(candidate)}
+                    >
+                      <img
+                        src={candidate.thumbUrl}
+                        alt={candidate.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          const tile = e.currentTarget.closest('.badge3d-result') as HTMLElement | null
+                          if (tile) {
+                            tile.style.display = 'none'
+                          }
+                        }}
+                      />
+                      <span>{candidate.sourceLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <details className="badge3d-keys">
+                <summary>{t.apiKeysLabel}</summary>
+                <p className="badge3d-hint">{t.apiKeysHelp}</p>
+                <label className="field">
+                  <span>Pexels</span>
+                  <input type="text" value={apiKeys.pexels ?? ''} onChange={(e) => updateApiKey('pexels', e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Pixabay</span>
+                  <input type="text" value={apiKeys.pixabay ?? ''} onChange={(e) => updateApiKey('pixabay', e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Unsplash</span>
+                  <input type="text" value={apiKeys.unsplash ?? ''} onChange={(e) => updateApiKey('unsplash', e.target.value)} />
+                </label>
+              </details>
             </section>
 
             <section className="badge3d-section">
