@@ -99,8 +99,20 @@ SVG-библиотека из 6–8 форм с запечёнными скла�
   «торцом»; Three.js — TextGeometry с bevel и материалами.
 - Материалы текста: золото, хром, эмаль с обводкой, неон со свечением,
   гравировка (вдавленный), тиснение.
-- Библиотека ~10 дисплейных шрифтов с кириллицей (Bebas Neue, Russo One,
-  Cinzel, Oswald, Black Ops One…), у каждого готовый 3D-пресет.
+- Библиотека ~20 дисплейных шрифтов, самохостинг через @fontsource
+  (OFL-лицензия, векторные, корректно уходят в экспорт), по категориям:
+  - **Brush/Script** (как «Summer Ops»): Yellowtail, Pacifico, Lobster,
+    Caveat*, Marck Script*, Bad Script*;
+  - **Vintage/Slab** (как табличка «IBIZA»): Alfa Slab One, Rye,
+    Yeseva One*, Playfair Display*;
+  - **Block/Sport** (как «2026»): Russo One*, Black Ops One,
+    Bowlby One SC, Bungee;
+  - **Condensed Caps**: Bebas Neue, Oswald*, Anton;
+  - **Tech**: Orbitron, Michroma.
+  (* — есть кириллица; для латинских шрифтов UI подсказывает
+  «только латиница» и предлагает ближайший кириллический аналог.)
+- У каждого шрифта готовые пресеты эффектов: контур, тень, экструзия,
+  дуга/наклон, заливка градиентом или текстурой золота.
 
 ## Размещения текста
 
