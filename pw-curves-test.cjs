@@ -7,13 +7,17 @@ const { chromium } = require('playwright')
   await page.evaluate(() => window.localStorage.removeItem('badge3dSettingsV1'))
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('tab', { name: /3D/ }).click()
-  await page.waitForTimeout(1200)
+  await page.waitForTimeout(800)
   await page.setInputFiles('input[type="file"][accept="image/*"]', 'pw-city-badge.png')
   await page.waitForTimeout(600)
-  // Enable the pre-drawn waving flag element.
-  await page.getByText('Развевающийся флаг (отрисованный)').click()
-  await page.waitForTimeout(1200)
-  await page.locator('.badge3d-preview').screenshot({ path: 'pw-flagicon.png' })
+
+  const curveNames = ['S-изгиб', 'Чаша', 'Гребень', 'Двойная']
+  for (const name of curveNames) {
+    await page.getByRole('button', { name }).click()
+    await page.waitForTimeout(500)
+    await page.locator('.badge3d-preview').screenshot({ path: `pw-curve-${name}.png` })
+  }
+
   await browser.close()
   console.log('done')
 })().catch((error) => {

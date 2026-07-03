@@ -14,6 +14,7 @@ import {
   type PhotoLayerMask,
   type RibbonPlacement,
   type TextMaterialId,
+  AUTHORED_CURVES,
   flagUrlFor,
   flagWavingUrlFor,
 } from './types'
@@ -1054,16 +1055,35 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
               </label>
               {state.ribbonPlacement === 'bottom' ? (
                 <>
-                  <div className="badge3d-two-fields">
-                    <label className="field">
-                      <span>{t.amplitudeLabel}: {state.ribbonAmplitude}</span>
-                      <input type="range" min={4} max={30} step={1} value={state.ribbonAmplitude} onChange={(e) => update('ribbonAmplitude', Number(e.target.value))} />
-                    </label>
-                    <label className="field">
-                      <span>{t.wavesLabel}: {state.ribbonWaves}</span>
-                      <input type="range" min={0.75} max={3} step={0.25} value={state.ribbonWaves} onChange={(e) => update('ribbonWaves', Number(e.target.value))} />
-                    </label>
+                  <div className="badge3d-choice-grid">
+                    {AUTHORED_CURVES.map((curve, index) => (
+                      <button
+                        key={curve.id}
+                        className={`badge3d-choice${(state.ribbonCurve ?? 0) === index ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => update('ribbonCurve', index)}
+                        aria-pressed={(state.ribbonCurve ?? 0) === index}
+                      >
+                        <svg viewBox="0 0 60 24" aria-hidden="true" style={{ width: 44, height: 18 }}>
+                          <path
+                            d={curve.points
+                              .map(([px, py], i) => `${i === 0 ? 'M' : 'L'} ${(px * 60).toFixed(1)} ${(12 + py * 9).toFixed(1)}`)
+                              .join(' ')}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>{locale === 'ru' ? curve.labelRu : curve.labelEn}</span>
+                      </button>
+                    ))}
                   </div>
+                  <label className="field">
+                    <span>{t.amplitudeLabel}: {state.ribbonAmplitude}</span>
+                    <input type="range" min={4} max={30} step={1} value={state.ribbonAmplitude} onChange={(e) => update('ribbonAmplitude', Number(e.target.value))} />
+                  </label>
                   <div className="badge3d-two-fields">
                     <label className="field">
                       <span>{t.ribbonHeightLabel}: {state.ribbonHeight}</span>
@@ -1417,6 +1437,7 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                       waves={state.ribbonWaves}
                       idSuffix="bottom"
                       stripes={flagStripes}
+                      curveIndex={state.ribbonCurve}
                     />
                   </g>
                 ) : null}

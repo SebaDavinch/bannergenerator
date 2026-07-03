@@ -1,4 +1,4 @@
-import { BADGE3D_VIEWBOX } from './types'
+import { AUTHORED_CURVES, BADGE3D_VIEWBOX } from './types'
 
 const VB = BADGE3D_VIEWBOX
 
@@ -21,6 +21,8 @@ type FlagWaveProps = {
   /** Stripe structure of the flag: when set, the band is rendered as clean
       curved color stripes (the drawn-ribbon look) instead of a warped image. */
   stripes?: FlagStripe[] | null
+  /** Index into AUTHORED_CURVES; takes precedence over the legacy waves knob. */
+  curveIndex?: number
 }
 
 const WAVE_SAMPLES = 96
@@ -49,18 +51,6 @@ function catmullRom(points: Array<[number, number]>, t: number): number {
       (-p0 + 3 * p1 - 3 * p2 + p3) * u3)
   )
 }
-
-/**
- * Hand-authored ribbon centerlines (artist curves, not sines): asymmetric
- * rhythm — long rise, sharp dip, relaxed tail. Values in -1..1, scaled by
- * amplitude. Picked by the "waves" control (1 = classic S, 2+ = double).
- */
-const AUTHORED_CURVES: Array<Array<[number, number]>> = [
-  // Classic S: high left shoulder, deep center-right dip, lifted tail.
-  [[0, -0.5], [0.16, 0.75], [0.4, 1.1], [0.62, -0.85], [0.84, -1.15], [1, -0.2]],
-  // Double wave: two unequal crests, like cloth pinched twice.
-  [[0, 0.35], [0.14, -0.95], [0.34, 0.7], [0.52, 1.15], [0.7, -0.6], [0.88, -1.05], [1, 0.1]],
-]
 
 /** Thickness profile: cloth widens in dips and tightens on crests. */
 function thicknessAt(value: number): number {
@@ -102,8 +92,9 @@ export function FlagWaveBand({
   edgeColor = '#e9eef5',
   mirror = false,
   stripes = null,
+  curveIndex,
 }: FlagWaveProps) {
-  const curve = AUTHORED_CURVES[waves >= 2 ? 1 : 0]
+  const curve = (AUTHORED_CURVES[curveIndex ?? (waves >= 2 ? 3 : 0)] ?? AUTHORED_CURVES[0]).points
   const offsets: number[] = []
   const normValues: number[] = []
   for (let index = 0; index <= WAVE_SAMPLES; index += 1) {

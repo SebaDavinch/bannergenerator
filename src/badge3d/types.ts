@@ -29,6 +29,42 @@ export type RibbonPlacement = 'none' | 'bottom' | 'sides' | 'left' | 'right'
 export type ContrailVariant = 'arc' | 'climb' | 'loop'
 export type TextMaterialId = 'chrome' | 'gold' | 'enamel' | 'neon' | 'flat'
 
+/**
+ * Hand-authored ribbon centerlines (artist curves, not sines). Values in
+ * -1..1 (positive = down), scaled by amplitude. Each curve enters and
+ * leaves the frame at a gentle angle — no flat spots, no abrupt kinks.
+ */
+export const AUTHORED_CURVES: Array<{ id: string; labelRu: string; labelEn: string; points: Array<[number, number]> }> = [
+  {
+    id: 's-sweep',
+    labelRu: 'S-изгиб',
+    labelEn: 'S-sweep',
+    // Long rise to a left-of-center crest, deep dip right, relaxed tail.
+    points: [[0, -0.1], [0.14, 0.5], [0.38, 1], [0.55, 0.35], [0.72, -0.75], [0.88, -1], [1, -0.55]],
+  },
+  {
+    id: 'bowl',
+    labelRu: 'Чаша',
+    labelEn: 'Bowl',
+    // Sash sagging through the middle, ends tucked high behind the frame.
+    points: [[0, -0.85], [0.18, -0.1], [0.42, 0.75], [0.58, 0.75], [0.82, -0.1], [1, -0.85]],
+  },
+  {
+    id: 'crest',
+    labelRu: 'Гребень',
+    labelEn: 'Crest',
+    // Proud arch over the center, dipping at both frame edges.
+    points: [[0, 0.75], [0.2, 0], [0.44, -0.8], [0.56, -0.8], [0.8, 0], [1, 0.75]],
+  },
+  {
+    id: 'double',
+    labelRu: 'Двойная',
+    labelEn: 'Double',
+    // Two unequal crests, like cloth pinched twice; softened transitions.
+    points: [[0, 0.15], [0.13, -0.7], [0.3, 0.45], [0.47, 1], [0.64, 0.1], [0.8, -0.85], [0.92, -0.55], [1, 0.05]],
+  },
+]
+
 export type Badge3DState = {
   shape: Badge3DShape
   frameMaterial: FrameMaterial
@@ -57,6 +93,7 @@ export type Badge3DState = {
   ribbonPlacement: RibbonPlacement
   ribbonAmplitude: number
   ribbonWaves: number
+  ribbonCurve: number
   ribbonHeight: number
   ribbonY: number
   planeEnabled: boolean
@@ -130,6 +167,7 @@ export function createDefaultBadge3DState(): Badge3DState {
     ribbonPlacement: 'bottom',
     ribbonAmplitude: 9,
     ribbonWaves: 1,
+    ribbonCurve: 0,
     ribbonHeight: 64,
     ribbonY: 442,
     planeEnabled: true,
