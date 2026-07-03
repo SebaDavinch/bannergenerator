@@ -18,7 +18,7 @@ type FlagWaveProps = {
   mirror?: boolean
 }
 
-const SLICES = 28
+const SLICES = 36
 
 /**
  * Waving flag band: the flag image is sliced into vertical strips, each strip
@@ -43,6 +43,7 @@ export function FlagWaveBand({
     offsets.push(Math.sin((t * waves + phase) * Math.PI * 2) * amplitude)
   }
   const shadeId = `frw-shade-${idSuffix}`
+  const sliceClipId = `frw-slice-${idSuffix}`
   const edgeTop: string[] = []
   const edgeBottom: string[] = []
   offsets.forEach((offset, index) => {
@@ -67,19 +68,33 @@ export function FlagWaveBand({
             return <stop key={index} offset={t} stopColor={color} />
           })}
         </linearGradient>
+        {/* Every strip is clipped to its own column (local frame is shared). */}
+        <clipPath id={sliceClipId}>
+          <rect
+            x={-sliceWidth / 2 - 0.6}
+            y={-height / 2 - 1}
+            width={sliceWidth + 1.2}
+            height={height + 2}
+          />
+        </clipPath>
       </defs>
-      {/* Flag strips. */}
+      {/* Flag strips: full flag image per strip, sheared along the wave and
+          clipped to the strip column so stripes stay continuous. */}
       {Array.from({ length: SLICES }, (_, index) => {
         const x = index * sliceWidth
         const offset = (offsets[index] + offsets[index + 1]) / 2
         const skew = Math.atan2(offsets[index + 1] - offsets[index], sliceWidth) * (180 / Math.PI)
         return (
-          <g key={index} transform={`translate(${x + sliceWidth / 2} ${cy + offset}) skewY(${skew.toFixed(2)})`}>
+          <g
+            key={index}
+            transform={`translate(${x + sliceWidth / 2} ${cy + offset}) skewY(${skew.toFixed(2)})`}
+            clipPath={`url(#${sliceClipId})`}
+          >
             <image
               href={flagUrl}
-              x={-((index + 0.5) * sliceWidth) - sliceWidth * 0.02}
+              x={-((index + 0.5) * sliceWidth)}
               y={-height / 2}
-              width={VB * 1.04}
+              width={VB}
               height={height}
               preserveAspectRatio="none"
             />

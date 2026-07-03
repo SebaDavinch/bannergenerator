@@ -12,21 +12,14 @@ type PlaneContrailProps = {
  */
 export function PlaneWithContrail({ variant, color = '#ffffff', idSuffix }: PlaneContrailProps) {
   const trailId = `pct-${idSuffix}`
-  const trail: Record<ContrailVariant, { d: string; planeAt: { x: number; y: number; angle: number } }> = {
-    arc: {
-      d: 'M -320 150 C -220 120 -120 60 -18 6',
-      planeAt: { x: 0, y: 0, angle: 28 },
-    },
-    climb: {
-      d: 'M -260 210 C -180 190 -90 120 -16 14',
-      planeAt: { x: 0, y: 0, angle: 42 },
-    },
-    loop: {
-      d: 'M -310 30 C -230 90 -170 110 -120 70 C -70 30 -60 -10 -16 4',
-      planeAt: { x: 0, y: 0, angle: 8 },
-    },
+  // Plane is authored nose-up (-Y); angle rotates the nose onto the trail's
+  // end tangent so the aircraft always flies along its contrail.
+  const trail: Record<ContrailVariant, { d: string; angle: number }> = {
+    arc: { d: 'M -320 150 C -220 120 -120 60 -18 9', angle: 63 },
+    climb: { d: 'M -260 210 C -180 190 -90 120 -14 12', angle: 35 },
+    loop: { d: 'M -310 30 C -230 90 -170 110 -120 70 C -70 30 -60 -8 -14 6', angle: 107 },
   }
-  const { d, planeAt } = trail[variant]
+  const { d, angle } = trail[variant]
 
   return (
     <g>
@@ -39,30 +32,33 @@ export function PlaneWithContrail({ variant, color = '#ffffff', idSuffix }: Plan
       </defs>
       <path d={d} fill="none" stroke={`url(#${trailId})`} strokeWidth={7} strokeLinecap="round" />
       <path d={d} fill="none" stroke={`url(#${trailId})`} strokeWidth={2.4} strokeLinecap="round" opacity={0.9} transform="translate(0 6)" />
-      <g transform={`translate(${planeAt.x} ${planeAt.y}) rotate(${planeAt.angle}) scale(1.15)`}>
+      <g transform={`rotate(${angle}) scale(1.05)`}>
         <AirlinerTopView color={color} />
       </g>
     </g>
   )
 }
 
-/** Narrow-body airliner, top view, nose pointing +X. Local frame ~ -34..34. */
+/**
+ * Narrow-body airliner, clean top view, nose pointing UP (-Y).
+ * Local frame: x -42..42, y -44..42.
+ */
 export function AirlinerTopView({ color = '#ffffff' }: { color?: string }) {
   return (
     <g fill={color}>
-      {/* Fuselage with nose taper and tail cone. */}
-      <path d="M 30 0 C 30 -2.6 27 -3.4 22 -3.6 L -16 -3 C -22 -2.8 -27 -2 -30.5 -0.8 C -31.5 -0.4 -31.5 0.4 -30.5 0.8 C -27 2 -22 2.8 -16 3 L 22 3.6 C 27 3.4 30 2.6 30 0 Z" />
-      {/* Wings, swept. */}
-      <path d="M 6 -2.4 L -3 -30 C -3.6 -31.8 -5.6 -32.4 -7 -31 L -9.4 -28.6 C -10.2 -27.8 -10.5 -26.6 -10.2 -25.4 L -5.6 -2.2 Z" />
-      <path d="M 6 2.4 L -3 30 C -3.6 31.8 -5.6 32.4 -7 31 L -9.4 28.6 C -10.2 27.8 -10.5 26.6 -10.2 25.4 L -5.6 2.2 Z" />
-      {/* Engines under wings. */}
-      <rect x="-1.5" y="-13.5" width="7.5" height="3.4" rx="1.7" />
-      <rect x="-1.5" y="10.1" width="7.5" height="3.4" rx="1.7" />
-      {/* Horizontal stabilizers. */}
-      <path d="M -24 -1.6 L -30.5 -11 C -31.3 -12.2 -32.8 -12.2 -33.4 -11 L -34 -9.6 C -34.3 -8.8 -34 -7.9 -33.3 -7.3 L -26.8 -1 Z" />
-      <path d="M -24 1.6 L -30.5 11 C -31.3 12.2 -32.8 12.2 -33.4 11 L -34 9.6 C -34.3 8.8 -34 7.9 -33.3 7.3 L -26.8 1 Z" />
-      {/* Cockpit windows hint. */}
-      <path d="M 27.6 -1.4 C 28.8 -1 28.8 1 27.6 1.4 L 25.4 2 L 25.4 -2 Z" fill="#0b2545" opacity="0.55" />
+      {/* Fuselage: rounded nose, slender body, tapered tail cone. */}
+      <path d="M 0 -44 C 2.6 -44 4 -40.5 4 -34 L 4 20 C 4 29 3 35 0 41 C -3 35 -4 29 -4 20 L -4 -34 C -4 -40.5 -2.6 -44 0 -44 Z" />
+      {/* Main wings: swept back, tapering chord, rounded tips. */}
+      <path d="M 3.8 -10 L 38 11 C 40.5 12.6 41.5 14.4 41 16.6 C 40.6 18.2 39.2 18.8 37.2 18.2 L 3.8 8 Z" />
+      <path d="M -3.8 -10 L -38 11 C -40.5 12.6 -41.5 14.4 -41 16.6 C -40.6 18.2 -39.2 18.8 -37.2 18.2 L -3.8 8 Z" />
+      {/* Engine nacelles on the wings, slightly ahead of the leading edge. */}
+      <path d="M 12 -4.5 C 14.2 -4.5 15.4 -3.4 15.4 -1.2 L 15.4 6.4 C 15.4 7.6 14.6 8.2 13.7 8.2 L 10.3 8.2 C 9.4 8.2 8.6 7.6 8.6 6.4 L 8.6 -1.2 C 8.6 -3.4 9.8 -4.5 12 -4.5 Z" />
+      <path d="M -12 -4.5 C -14.2 -4.5 -15.4 -3.4 -15.4 -1.2 L -15.4 6.4 C -15.4 7.6 -14.6 8.2 -13.7 8.2 L -10.3 8.2 C -9.4 8.2 -8.6 7.6 -8.6 6.4 L -8.6 -1.2 C -8.6 -3.4 -10.2 -4.5 -12 -4.5 Z" />
+      {/* Horizontal stabilizers: smaller swept pair near the tail. */}
+      <path d="M 3.2 28 L 16.5 36.5 C 18.2 37.6 18.8 38.9 18.4 40.4 C 18.1 41.5 17 41.9 15.6 41.5 L 3.2 37.5 Z" />
+      <path d="M -3.2 28 L -16.5 36.5 C -18.2 37.6 -18.8 38.9 -18.4 40.4 C -18.1 41.5 -17 41.9 -15.6 41.5 L -3.2 37.5 Z" />
+      {/* Tail fin seen from above: short spine highlight. */}
+      <rect x="-1.1" y="30" width="2.2" height="10" rx="1.1" opacity="0.9" />
     </g>
   )
 }
