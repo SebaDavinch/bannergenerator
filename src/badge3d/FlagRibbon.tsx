@@ -57,6 +57,18 @@ function thicknessAt(value: number): number {
   return 1 + 0.09 * value
 }
 
+/** Lightens (amount > 0) or darkens (amount < 0) an "rgb(r,g,b)" string. */
+function shadeColor(rgb: string, amount: number): string {
+  const match = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(rgb)
+  if (!match) {
+    return rgb
+  }
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  const mix = (channel: number) => (amount >= 0 ? channel + (255 - channel) * amount : channel * (1 + amount))
+  const [, r, g, b] = match
+  return `rgb(${clamp(mix(Number(r)))},${clamp(mix(Number(g)))},${clamp(mix(Number(b)))})`
+}
+
 /**
  * Builds a horizontal displacement map (normalized curve values encoded in
  * the green channel, red pinned to 128 so dx stays 0) for feImage.
@@ -129,10 +141,10 @@ export function FlagWaveBand({
   const sines = normValues.map((v) => v / maxAbs)
   // Curved stripe paths: each stripe flows between two offset curves of the
   // band, so flag colors follow the ribbon exactly (the drawn look).
-  const stripePaths: Array<{ d: string; color: string }> = []
+  const stripePaths: Array<{ d: string; color: string; gradientId: string }> = []
   if (stripes && stripes.length > 0) {
     let cum = 0
-    stripes.forEach((stripe) => {
+    stripes.forEach((stripe, stripeIndex) => {
       const from = cum
       const to = cum + stripe.fraction
       cum = to
@@ -149,28 +161,48 @@ export function FlagWaveBand({
       const lastTop = cy - lastThickness / 2 + offsets[WAVE_SAMPLES]
       stripePaths.push({
         color: stripe.color,
+        gradientId: `frw-stripe-${idSuffix}-${stripeIndex}`,
         d:
           `${top.join(' ')} L ${VB} ${(lastTop + lastThickness * to).toFixed(2)} ` +
           `${bottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`,
       })
     })
   }
-  // Local extrema of the centerline — where the artist would bake fold accents.
-  const extrema: Array<{ x: number; y: number; type: 'crest' | 'dip' }> = []
+  // Local extrema of the centerline — where a physical ribbon would crease
+  // as it changes direction. Rendered as crisp diagonal fold lines (not soft
+  // blur) for the faceted, gathered-fabric look of the reference art.
+  const extrema: Array<{ x: number; y: number; type: 'crest' | 'dip'; angleDeg: number }> = []
   for (let index = 2; index < WAVE_SAMPLES - 1; index += 1) {
     const prev = offsets[index - 1]
     const cur = offsets[index]
     const next = offsets[index + 1]
-    if (cur < prev && cur <= next) {
-      extrema.push({ x: index * stepX, y: cy + cur, type: 'crest' })
-    } else if (cur > prev && cur >= next) {
-      extrema.push({ x: index * stepX, y: cy + cur, type: 'dip' })
+    const isCrest = cur < prev && cur <= next
+    const isDip = cur > prev && cur >= next
+    if (isCrest || isDip) {
+      const localSlope = (next - prev) / (2 * stepX)
+      extrema.push({
+        x: index * stepX,
+        y: cy + cur,
+        type: isCrest ? 'crest' : 'dip',
+        angleDeg: Math.atan(localSlope) * (180 / Math.PI) + 90,
+      })
     }
   }
 
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
       <defs>
+        {/* Per-stripe satin gradient: lit top edge, saturated middle, darker
+            bottom edge — gives each color band real fabric volume instead
+            of a flat fill. */}
+        {stripePaths.map((stripe) => (
+          <linearGradient key={stripe.gradientId} id={stripe.gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={shadeColor(stripe.color, 0.45)} />
+            <stop offset="0.18" stopColor={shadeColor(stripe.color, 0.12)} />
+            <stop offset="0.6" stopColor={stripe.color} />
+            <stop offset="1" stopColor={shadeColor(stripe.color, -0.32)} />
+          </linearGradient>
+        ))}
         <linearGradient id={shadeId} x1="0" y1="0" x2="1" y2="0">
           {offsets.map((offset, index) => {
             if (index % 2 !== 0 && index !== WAVE_SAMPLES) {
@@ -194,7 +226,7 @@ export function FlagWaveBand({
             }
             const t = index / WAVE_SAMPLES
             const crest = Math.max(0, value)
-            const alpha = (crest * crest * 0.14).toFixed(3)
+            const alpha = (crest * crest * 0.2).toFixed(3)
             return <stop key={index} offset={t} stopColor={`rgba(255,255,255,${alpha})`} />
           })}
         </linearGradient>
@@ -240,14 +272,14 @@ export function FlagWaveBand({
           />
         </filter>
       </defs>
-      {/* Soft shadow the cloth casts on the badge. */}
-      <path d={bandPath} fill="#020a14" opacity="0.4" transform="translate(0 7)" style={{ filter: 'blur(6px)' }} />
-      {/* Flag colors: clean curved stripes when the flag structure is known,
-          otherwise the image deformed as one piece of cloth. */}
+      {/* Ground shadow the cloth casts on the badge — stronger separation. */}
+      <path d={bandPath} fill="#020a14" opacity="0.48" transform="translate(0 9)" style={{ filter: 'blur(8px)' }} />
+      {/* Flag colors: clean curved stripes with per-stripe satin shading when
+          the flag structure is known, otherwise the image deformed as cloth. */}
       {stripePaths.length > 0 ? (
         <g>
           {stripePaths.map((stripe, index) => (
-            <path key={index} d={stripe.d} fill={stripe.color} />
+            <path key={index} d={stripe.d} fill={`url(#${stripe.gradientId})`} />
           ))}
         </g>
       ) : (
@@ -270,27 +302,57 @@ export function FlagWaveBand({
       <path d={bandPath} fill={`url(#${volumeId})`} />
       {/* Woven texture. */}
       <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.025" style={{ mixBlendMode: 'overlay' }} />
-      {/* Baked fold accents at curve extrema: soft highlight on crests,
-          soft occlusion in dips — the hand-drawn ribbon look. */}
-      <g style={{ mixBlendMode: 'soft-light' }}>
-        {extrema.map((point, index) => (
-          <ellipse
-            key={index}
-            cx={point.x}
-            cy={point.y}
-            rx={height * 1.1}
-            ry={height * 0.62}
-            fill={point.type === 'crest' ? '#ffffff' : '#0a1526'}
-            opacity={point.type === 'crest' ? 0.5 : 0.4}
-            style={{ filter: 'blur(10px)' }}
-          />
-        ))}
+      {/* Crease facets at curve extrema: crisp diagonal fold lines (not soft
+          blur) — a physical ribbon creases sharply where it changes
+          direction, giving the faceted look of a real gathered ribbon. */}
+      <g style={{ mixBlendMode: 'multiply' }} opacity={0.9}>
+        {extrema.map((point, index) => {
+          const th = height * thicknessAt(point.type === 'crest' ? -maxAbs : maxAbs) * 1.15
+          return (
+            <line
+              key={index}
+              x1={point.x - (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
+              y1={point.y - (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
+              x2={point.x + (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
+              y2={point.y + (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
+              stroke="#1a2438"
+              strokeWidth={2.4}
+              strokeOpacity={0.22}
+              strokeLinecap="round"
+            />
+          )
+        })}
       </g>
-      {/* Edge accents: dark seam + thin metal highlight. */}
-      <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
-      <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
-      <path d={edgeTop.join(' ')} fill="none" stroke={edgeColor} strokeWidth={1.1} strokeOpacity={0.7} transform="translate(0 -1.6)" />
-      <path d={edgeBottom.join(' ')} fill="none" stroke={edgeColor} strokeWidth={1.1} strokeOpacity={0.7} transform="translate(0 1.6)" />
+      {/* Crest highlight facets: a bright diagonal counter-line just before
+          each crease, like light catching the raised edge of a fold. */}
+      <g style={{ mixBlendMode: 'screen' }} opacity={0.55}>
+        {extrema.filter((p) => p.type === 'crest').map((point, index) => {
+          const th = height * thicknessAt(-maxAbs) * 1.1
+          const dx = 3.5 * Math.cos((point.angleDeg * Math.PI) / 180)
+          const dy = 3.5 * Math.sin((point.angleDeg * Math.PI) / 180)
+          return (
+            <line
+              key={index}
+              x1={point.x - dx - (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
+              y1={point.y - dy - (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
+              x2={point.x - dx + (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
+              y2={point.y - dy + (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
+              stroke="#ffffff"
+              strokeWidth={1.6}
+              strokeOpacity={0.5}
+              strokeLinecap="round"
+            />
+          )
+        })}
+      </g>
+      {/* Metal edge trim: thick dark base + bright satin core + fine outer
+          rim — reads as a folded metal border, not a thin outline. */}
+      <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={4.2} strokeOpacity={0.75} />
+      <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={4.2} strokeOpacity={0.75} />
+      <path d={edgeTop.join(' ')} fill="none" stroke={edgeColor} strokeWidth={2.2} strokeOpacity={0.85} transform="translate(0 -1.4)" />
+      <path d={edgeBottom.join(' ')} fill="none" stroke={edgeColor} strokeWidth={2.2} strokeOpacity={0.85} transform="translate(0 1.4)" />
+      <path d={edgeTop.join(' ')} fill="none" stroke="#ffffff" strokeWidth={0.9} strokeOpacity={0.6} transform="translate(0 -2.3)" />
+      <path d={edgeBottom.join(' ')} fill="none" stroke="#ffffff" strokeWidth={0.9} strokeOpacity={0.6} transform="translate(0 2.3)" />
     </g>
   )
 }
@@ -300,14 +362,19 @@ type SideRibbonProps = {
   side: 'left' | 'right'
   idSuffix: string
   edgeColor?: string
+  /** Stripe structure of the flag: when set, renders satin color bands
+      instead of the raw flag image (matches the bottom ribbon's look). */
+  stripes?: FlagStripe[] | null
 }
 
 /**
  * Side ribbon: a folded band flowing from behind the badge edge downwards,
- * with a swallowtail cut. Drawn as three segments (back tail, fold, front),
- * flag artwork stretched along the front segment.
+ * with a swallowtail cut. Drawn as three segments (back tail, fold, front);
+ * when the flag's stripe structure is known, each stripe is rendered as a
+ * satin-shaded band following the ribbon's own width (the drawn look),
+ * otherwise the flag artwork is stretched along the front segment.
  */
-export function SideRibbon({ flagUrl, side, idSuffix, edgeColor = '#e9eef5' }: SideRibbonProps) {
+export function SideRibbon({ flagUrl, side, idSuffix, edgeColor = '#e9eef5', stripes = null }: SideRibbonProps) {
   const mirror = side === 'right'
   const shadeId = `srb-shade-${idSuffix}`
   const foldId = `srb-fold-${idSuffix}`
@@ -321,17 +388,45 @@ export function SideRibbon({ flagUrl, side, idSuffix, edgeColor = '#e9eef5' }: S
     'C 118 458 112 424 100 392 C 88 360 70 330 48 308 Z'
   const backPath = 'M 16 296 L 48 308 L 34 276 Z'
   const foldPath = 'M 16 296 C 30 306 40 310 48 308 L 40 292 Z'
+  // The band runs roughly top-to-bottom along its own local axis (not the
+  // global Y axis), so stripes are cut as near-horizontal slabs across the
+  // clipped front shape — same trick as the bottom band's offset-curve fill,
+  // simplified to horizontal bands since this path has no centerline curve.
+  const bandTop = 292
+  const bandBottom = 492
+  const bandSpan = bandBottom - bandTop
+  const stripeList = stripes ?? []
+  const stripeBands = stripeList.map((stripe, index) => {
+    const cumulativeBefore = stripeList.slice(0, index).reduce((sum, s) => sum + s.fraction, 0)
+    const from = bandTop + bandSpan * cumulativeBefore
+    const to = from + bandSpan * stripe.fraction
+    return {
+      color: stripe.color,
+      y: from,
+      height: to - from,
+      gradientId: `srb-stripe-${idSuffix}-${index}`,
+    }
+  })
 
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
       <defs>
+        {/* Per-stripe satin gradient, consistent with the bottom band. */}
+        {stripeBands.map((band) => (
+          <linearGradient key={band.gradientId} id={band.gradientId} x1="0" y1="0" x2="1" y2="0.6">
+            <stop offset="0" stopColor={shadeColor(band.color, 0.4)} />
+            <stop offset="0.3" stopColor={shadeColor(band.color, 0.08)} />
+            <stop offset="0.7" stopColor={band.color} />
+            <stop offset="1" stopColor={shadeColor(band.color, -0.3)} />
+          </linearGradient>
+        ))}
         {/* Light from upper-left along the band. */}
         <linearGradient id={shadeId} x1="0" y1="0" x2="0.7" y2="1">
-          <stop offset="0" stopColor="rgba(255,255,255,0.4)" />
-          <stop offset="0.35" stopColor="rgba(255,255,255,0.06)" />
-          <stop offset="0.62" stopColor="rgba(8,16,32,0.1)" />
-          <stop offset="0.82" stopColor="rgba(255,255,255,0.14)" />
-          <stop offset="1" stopColor="rgba(8,16,32,0.42)" />
+          <stop offset="0" stopColor="rgba(255,255,255,0.35)" />
+          <stop offset="0.35" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="0.62" stopColor="rgba(8,16,32,0.08)" />
+          <stop offset="0.82" stopColor="rgba(255,255,255,0.12)" />
+          <stop offset="1" stopColor="rgba(8,16,32,0.36)" />
         </linearGradient>
         <linearGradient id={foldId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="rgba(8,16,32,0.75)" />
@@ -350,23 +445,33 @@ export function SideRibbon({ flagUrl, side, idSuffix, edgeColor = '#e9eef5' }: S
         </clipPath>
       </defs>
       {/* Shadow the ribbon casts on whatever is behind it. */}
-      <path d={frontPath} fill="#020a14" opacity="0.38" transform="translate(5 7)" style={{ filter: 'blur(5px)' }} />
+      <path d={frontPath} fill="#020a14" opacity="0.42" transform="translate(5 8)" style={{ filter: 'blur(6px)' }} />
       {/* Back fold tucked behind the frame. */}
       <path d={backPath} fill="#0a1526" opacity={0.9} />
-      {/* Front band with flag artwork flowing along it. */}
+      {/* Front band: satin stripe bands when the flag structure is known,
+          otherwise the raw flag artwork flowing along the band. */}
       <g clipPath={`url(#${clipId})`}>
-        <image href={flagUrl} x={-52} y={270} width={240} height={240} preserveAspectRatio="xMidYMid slice" transform="rotate(28 70 386)" />
+        {stripeBands.length > 0 ? (
+          stripeBands.map((band) => (
+            <rect key={band.gradientId} x={-10} y={band.y} width={150} height={band.height + 1} fill={`url(#${band.gradientId})`} />
+          ))
+        ) : (
+          <image href={flagUrl} x={-52} y={270} width={240} height={240} preserveAspectRatio="xMidYMid slice" transform="rotate(28 70 386)" />
+        )}
         <path d={frontPath} fill={`url(#${shadeId})`} />
         {/* Cloth texture. */}
-        <path d={frontPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.06" style={{ mixBlendMode: 'overlay' }} />
+        <path d={frontPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.055" style={{ mixBlendMode: 'overlay' }} />
         {/* Swallowtail inner crease. */}
         <path d="M 62 476 L 96 456" stroke="rgba(8,16,32,0.5)" strokeWidth="2.5" fill="none" />
       </g>
       {/* Fold highlight where the band turns over. */}
       <path d={foldPath} fill={`url(#${foldId})`} />
-      {/* Edge treatment: dark seam + thin highlight. */}
-      <path d={frontPath} fill="none" stroke="#0a1526" strokeWidth={2.2} strokeOpacity={0.6} />
-      <path d={frontPath} fill="none" stroke={edgeColor} strokeWidth={1} strokeOpacity={0.65} />
+      {/* Crisp fold-line facet where the ribbon bends behind the frame —
+          matches the bottom band's crease treatment. */}
+      <line x1="16" y1="296" x2="48" y2="308" stroke="#1a2438" strokeWidth={2} strokeOpacity={0.3} strokeLinecap="round" style={{ mixBlendMode: 'multiply' }} />
+      {/* Metal edge trim: dark base + bright satin core, matching the bottom band. */}
+      <path d={frontPath} fill="none" stroke="#0a1526" strokeWidth={3.4} strokeOpacity={0.7} />
+      <path d={frontPath} fill="none" stroke={edgeColor} strokeWidth={1.6} strokeOpacity={0.8} />
     </g>
   )
 }

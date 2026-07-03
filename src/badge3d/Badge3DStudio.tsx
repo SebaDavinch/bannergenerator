@@ -1442,10 +1442,10 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   </g>
                 ) : null}
                 {flagUrl && (state.ribbonPlacement === 'sides' || state.ribbonPlacement === 'left') ? (
-                  <SideRibbon flagUrl={flagUrl} side="left" idSuffix="left" />
+                  <SideRibbon flagUrl={flagUrl} side="left" idSuffix="left" stripes={flagStripes} />
                 ) : null}
                 {flagUrl && (state.ribbonPlacement === 'sides' || state.ribbonPlacement === 'right') ? (
-                  <SideRibbon flagUrl={flagUrl} side="right" idSuffix="right" />
+                  <SideRibbon flagUrl={flagUrl} side="right" idSuffix="right" stripes={flagStripes} />
                 ) : null}
 
                 {/* Pre-drawn waving flag (Flagpedia artwork). */}
