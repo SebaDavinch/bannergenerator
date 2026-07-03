@@ -15,6 +15,7 @@ import {
   type RibbonPlacement,
   type TextMaterialId,
   flagUrlFor,
+  flagWavingUrlFor,
 } from './types'
 import { fetchAsDataUrl, searchAllSources, type PhotoCandidate, type PhotoSourceKeys } from './photoSearch'
 import { findCityBackdrops } from './cityBackdrops'
@@ -110,6 +111,8 @@ const STRINGS = {
     planeLoop: 'Петля',
     planeScaleLabel: 'Масштаб самолёта',
     wingsTopLabel: 'Эмблема-крылья сверху',
+    flagIconLabel: 'Развевающийся флаг (отрисованный)',
+    flagIconScaleLabel: 'Масштаб флага',
     latinOnly: 'лат.',
     exportButton: 'Скачать PNG 200×200',
     exporting: 'Экспорт…',
@@ -193,6 +196,8 @@ const STRINGS = {
     planeLoop: 'Loop',
     planeScaleLabel: 'Plane scale',
     wingsTopLabel: 'Wings emblem on top',
+    flagIconLabel: 'Waving flag (pre-drawn)',
+    flagIconScaleLabel: 'Flag scale',
     latinOnly: 'latin',
     exportButton: 'Download PNG 200×200',
     exporting: 'Exporting…',
@@ -993,6 +998,28 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                 <input type="checkbox" checked={state.wingsTopEnabled} onChange={(e) => update('wingsTopEnabled', e.target.checked)} />
                 <span>{t.wingsTopLabel}</span>
               </label>
+              <label className="field badge3d-checkbox">
+                <input type="checkbox" checked={state.flagIconEnabled} onChange={(e) => update('flagIconEnabled', e.target.checked)} />
+                <span>{t.flagIconLabel}</span>
+              </label>
+              {state.flagIconEnabled ? (
+                <>
+                  <div className="badge3d-two-fields">
+                    <label className="field">
+                      <span>X: {state.flagIconX}</span>
+                      <input type="range" min={40} max={472} step={4} value={state.flagIconX} onChange={(e) => update('flagIconX', Number(e.target.value))} />
+                    </label>
+                    <label className="field">
+                      <span>Y: {state.flagIconY}</span>
+                      <input type="range" min={40} max={472} step={4} value={state.flagIconY} onChange={(e) => update('flagIconY', Number(e.target.value))} />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span>{t.flagIconScaleLabel}: {state.flagIconScale.toFixed(2)}</span>
+                    <input type="range" min={0.4} max={2.2} step={0.05} value={state.flagIconScale} onChange={(e) => update('flagIconScale', Number(e.target.value))} />
+                  </label>
+                </>
+              ) : null}
             </section>
 
             <section className="badge3d-section">
@@ -1274,6 +1301,20 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   <SideRibbon flagUrl={flagUrl} side="right" idSuffix="right" />
                 ) : null}
 
+                {/* Pre-drawn waving flag (Flagpedia artwork). */}
+                {state.flagIconEnabled && state.flagCountry.length === 2 ? (
+                  <g transform={`translate(${state.flagIconX} ${state.flagIconY}) scale(${state.flagIconScale})`}>
+                    <image
+                      href={flagWavingUrlFor(state.flagCountry)}
+                      x={-64}
+                      y={-48}
+                      width={128}
+                      height={96}
+                      style={{ filter: 'drop-shadow(0 5px 6px rgba(2,10,20,0.55))' }}
+                    />
+                  </g>
+                ) : null}
+
                 {/* Wings emblem at the top. */}
                 {state.wingsTopEnabled ? (
                   <g transform={`translate(${CENTER} 58) scale(1.15)`}>
@@ -1365,18 +1406,14 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                       {state.plateText}
                     </text>
                     {state.flagCountry ? (
-                      <g>
-                        <rect x={CENTER + 46} y={CENTER + 135} width="58" height="38" rx="4" fill="#020a14" opacity="0.5" />
-                        <image
-                          href={flagUrl ?? undefined}
-                          x={CENTER + 48}
-                          y={CENTER + 136}
-                          width="54"
-                          height="36"
-                          preserveAspectRatio="xMidYMid slice"
-                        />
-                        <rect x={CENTER + 48} y={CENTER + 136} width="54" height="36" rx="3" fill="none" stroke="#e9eef5" strokeOpacity="0.55" strokeWidth="1.2" />
-                      </g>
+                      <image
+                        href={flagWavingUrlFor(state.flagCountry)}
+                        x={CENTER + 46}
+                        y={CENTER + 130}
+                        width="62"
+                        height="46"
+                        style={{ filter: 'drop-shadow(0 2px 3px rgba(2,10,20,0.6))' }}
+                      />
                     ) : null}
                     {/* Glass sheen on the upper half. */}
                     <rect x={CENTER - 115} y={CENTER + 127} width="230" height="24" rx="12" fill="url(#b3d-plate-sheen)" />

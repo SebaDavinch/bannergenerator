@@ -65,12 +65,21 @@ export type Badge3DState = {
   planeY: number
   planeScale: number
   wingsTopEnabled: boolean
+  flagIconEnabled: boolean
+  flagIconX: number
+  flagIconY: number
+  flagIconScale: number
 }
 
 export const BADGE3D_VIEWBOX = 512
 
 export function flagUrlFor(country: string): string {
   return `https://flagcdn.com/${country}.svg`
+}
+
+/** Professionally drawn waving-flag icon (Flagpedia, public domain, 254 countries). */
+export function flagWavingUrlFor(country: string): string {
+  return `https://flagcdn.com/256x192/${country}.png`
 }
 
 export function createPhotoLayer(src: string, label: string): PhotoLayer {
@@ -129,5 +138,9 @@ export function createDefaultBadge3DState(): Badge3DState {
     planeY: 86,
     planeScale: 0.85,
     wingsTopEnabled: false,
+    flagIconEnabled: false,
+    flagIconX: 118,
+    flagIconY: 120,
+    flagIconScale: 1,
   }
 }
