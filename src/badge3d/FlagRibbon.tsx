@@ -62,6 +62,9 @@ export function FlagWaveBand({
     offsets.push(Math.sin((t * waves + phase) * Math.PI * 2) * amplitude)
   }
   const shadeId = `frw-shade-${idSuffix}`
+  const sheenId = `frw-sheen-${idSuffix}`
+  const volumeId = `frw-volume-${idSuffix}`
+  const clothId = `frw-cloth-${idSuffix}`
   const filterId = `frw-disp-${idSuffix}`
   const stepX = VB / WAVE_SAMPLES
   const edgeTop: string[] = []
@@ -72,6 +75,12 @@ export function FlagWaveBand({
     edgeBottom.push(`${index === 0 ? 'M' : 'L'} ${x} ${cy + height / 2 + offset}`)
   })
   const pad = amplitude + 4
+  // Closed band outline reused by shadow / overlays / texture clip.
+  const bandPath =
+    `${edgeTop.join(' ')} L ${VB} ${cy + height / 2 + offsets[WAVE_SAMPLES]} ` +
+    `${edgeBottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`
+  // Raw sine values (for crest-synced satin sheen).
+  const sines = offsets.map((offset) => (amplitude > 0 ? offset / amplitude : 0))
 
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
@@ -91,6 +100,34 @@ export function FlagWaveBand({
             return <stop key={index} offset={t} stopColor={color} />
           })}
         </linearGradient>
+        {/* Satin sheen: bright bands exactly on wave crests. */}
+        <linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="0">
+          {sines.map((value, index) => {
+            if (index % 2 !== 0 && index !== WAVE_SAMPLES) {
+              return null
+            }
+            const t = index / WAVE_SAMPLES
+            const crest = Math.max(0, value)
+            const alpha = (crest * crest * 0.3).toFixed(3)
+            return <stop key={index} offset={t} stopColor={`rgba(255,255,255,${alpha})`} />
+          })}
+        </linearGradient>
+        {/* Vertical volume: lit top edge, occluded bottom edge. */}
+        <linearGradient id={volumeId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.22" />
+          <stop offset="0.25" stopColor="#ffffff" stopOpacity="0.04" />
+          <stop offset="0.72" stopColor="#08101f" stopOpacity="0.06" />
+          <stop offset="1" stopColor="#08101f" stopOpacity="0.32" />
+        </linearGradient>
+        {/* Woven cloth texture, clipped to the band. */}
+        <filter id={clothId} filterUnits="userSpaceOnUse" x={-8} y={cy - height / 2 - pad} width={VB + 16} height={height + pad * 2}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.35" numOctaves="2" seed="7" result="noise" />
+          <feColorMatrix in="noise" type="saturate" values="0" result="gray" />
+          <feComponentTransfer in="gray" result="soft">
+            <feFuncA type="linear" slope="0.5" intercept="0" />
+          </feComponentTransfer>
+          <feComposite in="soft" in2="SourceAlpha" operator="in" />
+        </filter>
         <filter
           id={filterId}
           filterUnits="userSpaceOnUse"
@@ -117,6 +154,8 @@ export function FlagWaveBand({
           />
         </filter>
       </defs>
+      {/* Soft shadow the cloth casts on the badge. */}
+      <path d={bandPath} fill="#020a14" opacity="0.4" transform="translate(0 7)" style={{ filter: 'blur(6px)' }} />
       {/* The flag, deformed as one piece of cloth. */}
       <g filter={`url(#${filterId})`}>
         <image
@@ -129,10 +168,13 @@ export function FlagWaveBand({
         />
       </g>
       {/* Wave shading synced to the same sine. */}
-      <path
-        d={`${edgeTop.join(' ')} L ${VB} ${cy + height / 2 + offsets[WAVE_SAMPLES]} ${edgeBottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`}
-        fill={`url(#${shadeId})`}
-      />
+      <path d={bandPath} fill={`url(#${shadeId})`} />
+      {/* Satin crest sheen (screen-like additive white). */}
+      <path d={bandPath} fill={`url(#${sheenId})`} />
+      {/* Vertical cloth volume. */}
+      <path d={bandPath} fill={`url(#${volumeId})`} />
+      {/* Woven texture. */}
+      <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.05" style={{ mixBlendMode: 'overlay' }} />
       {/* Edge accents: dark seam + thin metal highlight. */}
       <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
       <path d={edgeBottom.join(' ')} fill="none" stroke="#0a1526" strokeWidth={2.6} strokeOpacity={0.65} />
@@ -157,31 +199,63 @@ type SideRibbonProps = {
 export function SideRibbon({ flagUrl, side, idSuffix, edgeColor = '#e9eef5' }: SideRibbonProps) {
   const mirror = side === 'right'
   const shadeId = `srb-shade-${idSuffix}`
+  const foldId = `srb-fold-${idSuffix}`
+  const clothId = `srb-cloth-${idSuffix}`
   const clipId = `srb-clip-${idSuffix}`
-  // Geometry authored for the left side, mirrored for the right.
-  const frontPath = 'M 18 300 C 44 332 64 352 74 400 L 66 470 L 104 452 L 128 486 C 118 420 104 372 66 318 Z'
-  const backPath = 'M 18 300 L 66 318 L 50 282 Z'
+  // Geometry authored for the left side, mirrored for the right: the band
+  // emerges from behind the frame, folds over, flows down with a slight
+  // S-curve and ends in a swallowtail.
+  const frontPath =
+    'M 16 296 C 40 322 58 344 68 386 C 72 404 72 424 68 446 L 62 476 L 96 456 L 122 492 ' +
+    'C 118 458 112 424 100 392 C 88 360 70 330 48 308 Z'
+  const backPath = 'M 16 296 L 48 308 L 34 276 Z'
+  const foldPath = 'M 16 296 C 30 306 40 310 48 308 L 40 292 Z'
 
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
       <defs>
-        <linearGradient id={shadeId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="rgba(255,255,255,0.35)" />
-          <stop offset="0.45" stopColor="rgba(255,255,255,0)" />
-          <stop offset="1" stopColor="rgba(8,16,32,0.45)" />
+        {/* Light from upper-left along the band. */}
+        <linearGradient id={shadeId} x1="0" y1="0" x2="0.7" y2="1">
+          <stop offset="0" stopColor="rgba(255,255,255,0.4)" />
+          <stop offset="0.35" stopColor="rgba(255,255,255,0.06)" />
+          <stop offset="0.62" stopColor="rgba(8,16,32,0.1)" />
+          <stop offset="0.82" stopColor="rgba(255,255,255,0.14)" />
+          <stop offset="1" stopColor="rgba(8,16,32,0.42)" />
         </linearGradient>
+        <linearGradient id={foldId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="rgba(8,16,32,0.75)" />
+          <stop offset="1" stopColor="rgba(8,16,32,0.25)" />
+        </linearGradient>
+        <filter id={clothId} filterUnits="userSpaceOnUse" x={0} y={260} width={140} height={250}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.35 0.02" numOctaves="2" seed="11" result="noise" />
+          <feColorMatrix in="noise" type="saturate" values="0" result="gray" />
+          <feComponentTransfer in="gray" result="soft">
+            <feFuncA type="linear" slope="0.5" intercept="0" />
+          </feComponentTransfer>
+          <feComposite in="soft" in2="SourceAlpha" operator="in" />
+        </filter>
         <clipPath id={clipId}>
           <path d={frontPath} />
         </clipPath>
       </defs>
-      {/* Back fold (darker, tucked behind). */}
-      <path d={backPath} fill="#0a1526" opacity={0.85} />
-      {/* Front band with flag artwork. */}
+      {/* Shadow the ribbon casts on whatever is behind it. */}
+      <path d={frontPath} fill="#020a14" opacity="0.38" transform="translate(5 7)" style={{ filter: 'blur(5px)' }} />
+      {/* Back fold tucked behind the frame. */}
+      <path d={backPath} fill="#0a1526" opacity={0.9} />
+      {/* Front band with flag artwork flowing along it. */}
       <g clipPath={`url(#${clipId})`}>
-        <image href={flagUrl} x={-40} y={280} width={220} height={220} preserveAspectRatio="xMidYMid slice" transform="rotate(24 74 380)" />
+        <image href={flagUrl} x={-52} y={270} width={240} height={240} preserveAspectRatio="xMidYMid slice" transform="rotate(28 70 386)" />
         <path d={frontPath} fill={`url(#${shadeId})`} />
+        {/* Cloth texture. */}
+        <path d={frontPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.06" style={{ mixBlendMode: 'overlay' }} />
+        {/* Swallowtail inner crease. */}
+        <path d="M 62 476 L 96 456" stroke="rgba(8,16,32,0.5)" strokeWidth="2.5" fill="none" />
       </g>
-      <path d={frontPath} fill="none" stroke={edgeColor} strokeWidth={3} strokeOpacity={0.85} />
+      {/* Fold highlight where the band turns over. */}
+      <path d={foldPath} fill={`url(#${foldId})`} />
+      {/* Edge treatment: dark seam + thin highlight. */}
+      <path d={frontPath} fill="none" stroke="#0a1526" strokeWidth={2.2} strokeOpacity={0.6} />
+      <path d={frontPath} fill="none" stroke={edgeColor} strokeWidth={1} strokeOpacity={0.65} />
     </g>
   )
 }
