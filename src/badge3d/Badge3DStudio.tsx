@@ -22,6 +22,7 @@ import { findCityBackdrops } from './cityBackdrops'
 import { BADGE_FONTS, TEXT_MATERIALS } from './fonts'
 import { Text3D } from './Text3D'
 import { FlagWaveBand, SideRibbon } from './FlagRibbon'
+import { extractFlagStripes, type FlagStripe } from './flagStripes'
 import { PlaneWithContrail, WingsEmblem, WingSeparator } from './decor'
 import { THEME_PRESETS } from './presets'
 import './fonts'
@@ -330,6 +331,24 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
   const selectedLayer = state.layers.find((layer) => layer.id === state.selectedLayerId) ?? null
   const cityChips = useMemo(() => findCityBackdrops(cityInput), [cityInput])
   const flagUrl = state.flagCountry.length === 2 ? flagUrlFor(state.flagCountry) : null
+  const [flagStripes, setFlagStripes] = useState<FlagStripe[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!state.flagCountry || state.flagCountry.length !== 2) {
+      setFlagStripes(null)
+      return
+    }
+    // Sample the raster render (SVG can't be pixel-read cross-origin reliably).
+    void extractFlagStripes(`https://flagcdn.com/w160/${state.flagCountry}.png`).then((stripes) => {
+      if (!cancelled) {
+        setFlagStripes(stripes)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [state.flagCountry])
 
   function updateApiKey(key: keyof PhotoSourceKeys, value: string) {
     setApiKeys((prev) => {
@@ -1291,6 +1310,7 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                       amplitude={state.ribbonAmplitude}
                       waves={state.ribbonWaves}
                       idSuffix="bottom"
+                      stripes={flagStripes}
                     />
                   </g>
                 ) : null}

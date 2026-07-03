@@ -4,6 +4,8 @@ const VB = BADGE3D_VIEWBOX
 
 export type RibbonPlacement = 'none' | 'bottom' | 'sides' | 'left' | 'right'
 
+import type { FlagStripe } from './flagStripes'
+
 type FlagWaveProps = {
   flagUrl: string
   /** Band vertical centre. */
@@ -16,6 +18,9 @@ type FlagWaveProps = {
   idSuffix: string
   edgeColor?: string
   mirror?: boolean
+  /** Stripe structure of the flag: when set, the band is rendered as clean
+      curved color stripes (the drawn-ribbon look) instead of a warped image. */
+  stripes?: FlagStripe[] | null
 }
 
 const WAVE_SAMPLES = 96
@@ -96,6 +101,7 @@ export function FlagWaveBand({
   idSuffix,
   edgeColor = '#e9eef5',
   mirror = false,
+  stripes = null,
 }: FlagWaveProps) {
   const curve = AUTHORED_CURVES[waves >= 2 ? 1 : 0]
   const offsets: number[] = []
@@ -130,6 +136,34 @@ export function FlagWaveBand({
     `${edgeBottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`
   // Normalized curve values (for crest-synced satin sheen and fold accents).
   const sines = normValues.map((v) => v / maxAbs)
+  // Curved stripe paths: each stripe flows between two offset curves of the
+  // band, so flag colors follow the ribbon exactly (the drawn look).
+  const stripePaths: Array<{ d: string; color: string }> = []
+  if (stripes && stripes.length > 0) {
+    let cum = 0
+    stripes.forEach((stripe) => {
+      const from = cum
+      const to = cum + stripe.fraction
+      cum = to
+      const top: string[] = []
+      const bottom: string[] = []
+      offsets.forEach((offset, index) => {
+        const x = index * stepX
+        const th = height * thicknessAt(normValues[index])
+        const bandTop = cy - th / 2 + offset
+        top.push(`${index === 0 ? 'M' : 'L'} ${x} ${(bandTop + th * from).toFixed(2)}`)
+        bottom.push(`${index === 0 ? 'M' : 'L'} ${x} ${(bandTop + th * to).toFixed(2)}`)
+      })
+      const lastThickness = height * thicknessAt(normValues[WAVE_SAMPLES])
+      const lastTop = cy - lastThickness / 2 + offsets[WAVE_SAMPLES]
+      stripePaths.push({
+        color: stripe.color,
+        d:
+          `${top.join(' ')} L ${VB} ${(lastTop + lastThickness * to).toFixed(2)} ` +
+          `${bottom.slice().reverse().map((cmd) => cmd.replace(/^[ML]/, 'L')).join(' ')} Z`,
+      })
+    })
+  }
   // Local extrema of the centerline — where the artist would bake fold accents.
   const extrema: Array<{ x: number; y: number; type: 'crest' | 'dip' }> = []
   for (let index = 2; index < WAVE_SAMPLES - 1; index += 1) {
@@ -217,17 +251,26 @@ export function FlagWaveBand({
       </defs>
       {/* Soft shadow the cloth casts on the badge. */}
       <path d={bandPath} fill="#020a14" opacity="0.4" transform="translate(0 7)" style={{ filter: 'blur(6px)' }} />
-      {/* The flag, deformed as one piece of cloth. */}
-      <g filter={`url(#${filterId})`}>
-        <image
-          href={flagUrl}
-          x={0}
-          y={cy - height / 2}
-          width={VB}
-          height={height}
-          preserveAspectRatio="none"
-        />
-      </g>
+      {/* Flag colors: clean curved stripes when the flag structure is known,
+          otherwise the image deformed as one piece of cloth. */}
+      {stripePaths.length > 0 ? (
+        <g>
+          {stripePaths.map((stripe, index) => (
+            <path key={index} d={stripe.d} fill={stripe.color} />
+          ))}
+        </g>
+      ) : (
+        <g filter={`url(#${filterId})`}>
+          <image
+            href={flagUrl}
+            x={0}
+            y={cy - height / 2}
+            width={VB}
+            height={height}
+            preserveAspectRatio="none"
+          />
+        </g>
+      )}
       {/* Wave shading synced to the same sine. */}
       <path d={bandPath} fill={`url(#${shadeId})`} />
       {/* Satin crest sheen (screen-like additive white). */}
