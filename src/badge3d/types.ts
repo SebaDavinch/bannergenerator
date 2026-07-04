@@ -158,7 +158,7 @@ export function createDefaultBadge3DState(): Badge3DState {
     yearSize: 120,
     yearMaterial: 'chrome',
     yearDepth: 8,
-    yearArch: 6,
+    yearArch: 0,
     yearY: 302,
     line2Font: "'Oswald', sans-serif",
     line2Size: 30,
