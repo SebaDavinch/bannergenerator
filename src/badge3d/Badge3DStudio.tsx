@@ -30,7 +30,7 @@ import { generateVariants, type AutoVariant } from './autoGenerator'
 import './fonts'
 import './badge3d.css'
 
-const STORAGE_KEY = 'badge3dSettingsV1'
+const STORAGE_KEY = 'badge3dSettingsV2'
 const KEYS_STORAGE_KEY = 'badge3dApiKeysV1'
 const VB = BADGE3D_VIEWBOX
 const CENTER = VB / 2
