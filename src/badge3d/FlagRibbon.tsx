@@ -168,27 +168,6 @@ export function FlagWaveBand({
       })
     })
   }
-  // Local extrema of the centerline — where a physical ribbon would crease
-  // as it changes direction. Rendered as crisp diagonal fold lines (not soft
-  // blur) for the faceted, gathered-fabric look of the reference art.
-  const extrema: Array<{ x: number; y: number; type: 'crest' | 'dip'; angleDeg: number }> = []
-  for (let index = 2; index < WAVE_SAMPLES - 1; index += 1) {
-    const prev = offsets[index - 1]
-    const cur = offsets[index]
-    const next = offsets[index + 1]
-    const isCrest = cur < prev && cur <= next
-    const isDip = cur > prev && cur >= next
-    if (isCrest || isDip) {
-      const localSlope = (next - prev) / (2 * stepX)
-      extrema.push({
-        x: index * stepX,
-        y: cy + cur,
-        type: isCrest ? 'crest' : 'dip',
-        angleDeg: Math.atan(localSlope) * (180 / Math.PI) + 90,
-      })
-    }
-  }
-
   return (
     <g transform={mirror ? `translate(${VB} 0) scale(-1 1)` : undefined}>
       <defs>
@@ -302,49 +281,6 @@ export function FlagWaveBand({
       <path d={bandPath} fill={`url(#${volumeId})`} />
       {/* Woven texture. */}
       <path d={bandPath} fill="#ffffff" filter={`url(#${clothId})`} opacity="0.025" style={{ mixBlendMode: 'overlay' }} />
-      {/* Crease facets at curve extrema: crisp diagonal fold lines (not soft
-          blur) — a physical ribbon creases sharply where it changes
-          direction, giving the faceted look of a real gathered ribbon. */}
-      <g style={{ mixBlendMode: 'multiply' }} opacity={0.9}>
-        {extrema.map((point, index) => {
-          const th = height * thicknessAt(point.type === 'crest' ? -maxAbs : maxAbs) * 1.15
-          return (
-            <line
-              key={index}
-              x1={point.x - (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
-              y1={point.y - (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
-              x2={point.x + (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
-              y2={point.y + (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
-              stroke="#1a2438"
-              strokeWidth={2.4}
-              strokeOpacity={0.22}
-              strokeLinecap="round"
-            />
-          )
-        })}
-      </g>
-      {/* Crest highlight facets: a bright diagonal counter-line just before
-          each crease, like light catching the raised edge of a fold. */}
-      <g style={{ mixBlendMode: 'screen' }} opacity={0.55}>
-        {extrema.filter((p) => p.type === 'crest').map((point, index) => {
-          const th = height * thicknessAt(-maxAbs) * 1.1
-          const dx = 3.5 * Math.cos((point.angleDeg * Math.PI) / 180)
-          const dy = 3.5 * Math.sin((point.angleDeg * Math.PI) / 180)
-          return (
-            <line
-              key={index}
-              x1={point.x - dx - (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
-              y1={point.y - dy - (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
-              x2={point.x - dx + (th / 2) * Math.cos((point.angleDeg * Math.PI) / 180)}
-              y2={point.y - dy + (th / 2) * Math.sin((point.angleDeg * Math.PI) / 180)}
-              stroke="#ffffff"
-              strokeWidth={1.6}
-              strokeOpacity={0.5}
-              strokeLinecap="round"
-            />
-          )
-        })}
-      </g>
       {/* Metal edge trim: thick dark base + bright satin core + fine outer
           rim — reads as a folded metal border, not a thin outline. */}
       <path d={edgeTop.join(' ')} fill="none" stroke="#0a1526" strokeWidth={4.2} strokeOpacity={0.75} />

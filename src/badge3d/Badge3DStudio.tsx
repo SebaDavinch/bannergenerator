@@ -14,6 +14,7 @@ import {
   type PhotoLayerMask,
   type RibbonPlacement,
   type TextMaterialId,
+  type FlagWavePresetId,
   AUTHORED_CURVES,
   flagUrlFor,
   flagWavingUrlFor,
@@ -27,6 +28,7 @@ import { extractFlagStripes, type FlagStripe } from './flagStripes'
 import { PlaneWithContrail, WingsEmblem, WingSeparator } from './decor'
 import { THEME_PRESETS } from './presets'
 import { generateVariants, type AutoVariant } from './autoGenerator'
+import { ThreeFlagCanvas, type ThreeFlagCanvasHandle } from './three/ThreeFlagCanvas'
 import './fonts'
 import './badge3d.css'
 
@@ -123,6 +125,12 @@ const STRINGS = {
     wingsTopLabel: 'Эмблема-крылья сверху',
     flagIconLabel: 'Развевающийся флаг (отрисованный)',
     flagIconScaleLabel: 'Масштаб флага',
+    super3dLabel: 'Супер 3D (живая ткань)',
+    super3dHint: 'Настоящая 3D-геометрия с освещением вместо плоского SVG — рендерится в браузере. Одновременно можно включить только один 3D-флаг (лента или иконка).',
+    wavePresetLabel: 'Сила ветра',
+    wavePresetGentle: 'Штиль',
+    wavePresetMedium: 'Бриз',
+    wavePresetWild: 'Шторм',
     latinOnly: 'лат.',
     exportButton: 'Скачать PNG 200×200',
     exporting: 'Экспорт…',
@@ -215,6 +223,12 @@ const STRINGS = {
     wingsTopLabel: 'Wings emblem on top',
     flagIconLabel: 'Waving flag (pre-drawn)',
     flagIconScaleLabel: 'Flag scale',
+    super3dLabel: 'Super 3D (live cloth)',
+    super3dHint: 'Real 3D geometry with lighting instead of flat SVG — renders in the browser. Only one 3D flag (ribbon or icon) can be active at a time.',
+    wavePresetLabel: 'Wind strength',
+    wavePresetGentle: 'Calm',
+    wavePresetMedium: 'Breeze',
+    wavePresetWild: 'Storm',
     latinOnly: 'latin',
     exportButton: 'Download PNG 200×200',
     exporting: 'Exporting…',
@@ -335,6 +349,12 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
   const [autoStatus, setAutoStatus] = useState<'idle' | 'empty'>('idle')
   const autoAbortRef = useRef<AbortController | null>(null)
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; layerX: number; layerY: number } | null>(null)
+  const threeRibbonRef = useRef<ThreeFlagCanvasHandle | null>(null)
+  const threeIconRef = useRef<ThreeFlagCanvasHandle | null>(null)
+  // While set, the SVG swaps the live Three.js canvases for a frozen <image>
+  // snapshot so html-to-image captures deterministic pixels instead of
+  // racing a live WebGL canvas during export.
+  const [exportFreeze, setExportFreeze] = useState<{ ribbon?: string; icon?: string } | null>(null)
 
   useEffect(() => {
     try {
@@ -572,6 +592,28 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
     setErrorMessage('')
     try {
       await document.fonts.ready
+      // Freeze any live Three.js flag canvases to a static snapshot before
+      // handing the DOM to html-to-image: a live WebGL canvas mid-animation
+      // is a race (the exact frame captured is nondeterministic and some
+      // html-to-image versions mishandle WebGL context canvases entirely).
+      const freeze: { ribbon?: string; icon?: string } = {}
+      if (state.ribbon3d) {
+        const shot = threeRibbonRef.current?.captureDataUrl()
+        if (shot) {
+          freeze.ribbon = shot
+        }
+      }
+      if (state.flagIcon3d) {
+        const shot = threeIconRef.current?.captureDataUrl()
+        if (shot) {
+          freeze.icon = shot
+        }
+      }
+      if (freeze.ribbon || freeze.icon) {
+        setExportFreeze(freeze)
+        await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)))
+        await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)))
+      }
       await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)))
       const nodeSize = node.getBoundingClientRect().width
       const dataUrl = await toPng(node, { pixelRatio: 800 / nodeSize })
@@ -598,6 +640,7 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
     } catch {
       setErrorMessage(t.exportError)
     } finally {
+      setExportFreeze(null)
       setIsExporting(false)
     }
   }
@@ -613,6 +656,18 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
     [state.shape, state.frameWidth],
   )
   const metal = FRAME_GRADIENTS[state.frameMaterial]
+
+  // Geometry for the 3D ribbon's foreignObject frame: generous vertical
+  // padding so the live cloth wave never clips against the box edges.
+  const ribbonFoPad = Math.max(state.ribbonAmplitude * 1.4, 24)
+  const ribbonFoY = state.ribbonY - state.ribbonHeight / 2 - ribbonFoPad
+  const ribbonFoHeight = state.ribbonHeight + ribbonFoPad * 2
+  // World-unit bend amplitude: scales the viewBox-px ribbon amplitude by the
+  // same ratio the Three.js plane's fixed world height (2) bears to this
+  // foreignObject's viewBox height, so the 3D bend visually matches the SVG one.
+  const ribbonBendAmplitude3d = (state.ribbonAmplitude * 2) / ribbonFoHeight
+  const ribbonPixelWidth3d = 1024
+  const ribbonPixelHeight3d = Math.max(1, Math.round((ribbonPixelWidth3d * ribbonFoHeight) / VB))
 
   const shapeOptions: Array<[Badge3DShape, string]> = [
     ['circle', t.shapeCircle],
@@ -1094,6 +1149,37 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                       <input type="range" min={360} max={500} step={2} value={state.ribbonY} onChange={(e) => update('ribbonY', Number(e.target.value))} />
                     </label>
                   </div>
+                  <label className="field badge3d-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={state.ribbon3d}
+                      onChange={(e) => setState((prev) => ({ ...prev, ribbon3d: e.target.checked, flagIcon3d: e.target.checked ? false : prev.flagIcon3d }))}
+                    />
+                    <span>{t.super3dLabel}</span>
+                  </label>
+                </>
+              ) : null}
+              {state.ribbon3d || state.flagIcon3d ? (
+                <>
+                  <p className="badge3d-hint">{t.super3dHint}</p>
+                  <span className="badge3d-subhead">{t.wavePresetLabel}</span>
+                  <div className="badge3d-choice-grid">
+                    {([
+                      ['gentle', t.wavePresetGentle],
+                      ['medium', t.wavePresetMedium],
+                      ['wild', t.wavePresetWild],
+                    ] as Array<[FlagWavePresetId, string]>).map(([preset, label]) => (
+                      <button
+                        key={preset}
+                        className={`badge3d-choice${state.flagWavePreset === preset ? ' is-active' : ''}`}
+                        type="button"
+                        onClick={() => update('flagWavePreset', preset)}
+                        aria-pressed={state.flagWavePreset === preset}
+                      >
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </>
               ) : null}
             </section>
@@ -1162,6 +1248,14 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   <label className="field">
                     <span>{t.flagIconScaleLabel}: {state.flagIconScale.toFixed(2)}</span>
                     <input type="range" min={0.4} max={2.2} step={0.05} value={state.flagIconScale} onChange={(e) => update('flagIconScale', Number(e.target.value))} />
+                  </label>
+                  <label className="field badge3d-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={state.flagIcon3d}
+                      onChange={(e) => setState((prev) => ({ ...prev, flagIcon3d: e.target.checked, ribbon3d: e.target.checked ? false : prev.ribbon3d }))}
+                    />
+                    <span>{t.super3dLabel}</span>
                   </label>
                 </>
               ) : null}
@@ -1429,16 +1523,44 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                     side ribbons intentionally overlap the frame for depth. */}
                 {flagUrl && state.ribbonPlacement === 'bottom' ? (
                   <g mask="url(#b3d-content-mask)">
-                    <FlagWaveBand
-                      flagUrl={flagUrl}
-                      cy={state.ribbonY}
-                      height={state.ribbonHeight}
-                      amplitude={state.ribbonAmplitude}
-                      waves={state.ribbonWaves}
-                      idSuffix="bottom"
-                      stripes={flagStripes}
-                      curveIndex={state.ribbonCurve}
-                    />
+                    {state.ribbon3d ? (
+                      exportFreeze?.ribbon ? (
+                        <image
+                          href={exportFreeze.ribbon}
+                          x={0}
+                          y={ribbonFoY}
+                          width={VB}
+                          height={ribbonFoHeight}
+                          preserveAspectRatio="none"
+                        />
+                      ) : (
+                        <foreignObject x={0} y={ribbonFoY} width={VB} height={ribbonFoHeight}>
+                          <div className="badge3d-three-host">
+                            <ThreeFlagCanvas
+                              ref={threeRibbonRef}
+                              countryCode={state.flagCountry}
+                              wavePreset={state.flagWavePreset}
+                              pixelWidth={ribbonPixelWidth3d}
+                              pixelHeight={ribbonPixelHeight3d}
+                              bendPoints={AUTHORED_CURVES[state.ribbonCurve]?.points}
+                              bendAmplitude={ribbonBendAmplitude3d}
+                              className="badge3d-three-canvas"
+                            />
+                          </div>
+                        </foreignObject>
+                      )
+                    ) : (
+                      <FlagWaveBand
+                        flagUrl={flagUrl}
+                        cy={state.ribbonY}
+                        height={state.ribbonHeight}
+                        amplitude={state.ribbonAmplitude}
+                        waves={state.ribbonWaves}
+                        idSuffix="bottom"
+                        stripes={flagStripes}
+                        curveIndex={state.ribbonCurve}
+                      />
+                    )}
                   </g>
                 ) : null}
                 {flagUrl && (state.ribbonPlacement === 'sides' || state.ribbonPlacement === 'left') ? (
@@ -1448,17 +1570,44 @@ export function Badge3DStudio({ locale, modeTabs, panelHeader }: Badge3DStudioPr
                   <SideRibbon flagUrl={flagUrl} side="right" idSuffix="right" stripes={flagStripes} />
                 ) : null}
 
-                {/* Pre-drawn waving flag (Flagpedia artwork). */}
+                {/* Standalone waving flag: pre-drawn Flagpedia artwork, or a
+                    live-lit Three.js cloth render in 3D mode. */}
                 {state.flagIconEnabled && state.flagCountry.length === 2 ? (
                   <g transform={`translate(${state.flagIconX} ${state.flagIconY}) scale(${state.flagIconScale})`}>
-                    <image
-                      href={flagWavingUrlFor(state.flagCountry)}
-                      x={-64}
-                      y={-48}
-                      width={128}
-                      height={96}
-                      style={{ filter: 'drop-shadow(0 5px 6px rgba(2,10,20,0.55))' }}
-                    />
+                    {state.flagIcon3d ? (
+                      exportFreeze?.icon ? (
+                        <image
+                          href={exportFreeze.icon}
+                          x={-64}
+                          y={-48}
+                          width={128}
+                          height={96}
+                          style={{ filter: 'drop-shadow(0 5px 6px rgba(2,10,20,0.55))' }}
+                        />
+                      ) : (
+                        <foreignObject x={-64} y={-48} width={128} height={96} style={{ overflow: 'visible' }}>
+                          <div className="badge3d-three-host badge3d-three-host-shadow">
+                            <ThreeFlagCanvas
+                              ref={threeIconRef}
+                              countryCode={state.flagCountry}
+                              wavePreset={state.flagWavePreset}
+                              pixelWidth={480}
+                              pixelHeight={360}
+                              className="badge3d-three-canvas"
+                            />
+                          </div>
+                        </foreignObject>
+                      )
+                    ) : (
+                      <image
+                        href={flagWavingUrlFor(state.flagCountry)}
+                        x={-64}
+                        y={-48}
+                        width={128}
+                        height={96}
+                        style={{ filter: 'drop-shadow(0 5px 6px rgba(2,10,20,0.55))' }}
+                      />
+                    )}
                   </g>
                 ) : null}
 

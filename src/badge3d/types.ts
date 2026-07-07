@@ -28,6 +28,7 @@ export type PhotoLayer = {
 export type RibbonPlacement = 'none' | 'bottom' | 'sides' | 'left' | 'right'
 export type ContrailVariant = 'arc' | 'climb' | 'loop'
 export type TextMaterialId = 'chrome' | 'gold' | 'enamel' | 'neon' | 'flat'
+export type FlagWavePresetId = 'gentle' | 'medium' | 'wild'
 
 /**
  * Hand-authored ribbon centerlines (artist curves, not sines). Values in
@@ -106,6 +107,10 @@ export type Badge3DState = {
   flagIconX: number
   flagIconY: number
   flagIconScale: number
+  /** Live-lit Three.js cloth render instead of the flat SVG/PNG flag. */
+  flagIcon3d: boolean
+  ribbon3d: boolean
+  flagWavePreset: FlagWavePresetId
 }
 
 export const BADGE3D_VIEWBOX = 512
@@ -180,5 +185,8 @@ export function createDefaultBadge3DState(): Badge3DState {
     flagIconX: 118,
     flagIconY: 120,
     flagIconScale: 1,
+    flagIcon3d: false,
+    ribbon3d: false,
+    flagWavePreset: 'medium',
   }
 }
