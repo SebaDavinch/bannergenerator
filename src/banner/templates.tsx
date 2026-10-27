@@ -17,7 +17,8 @@ import { TEAM_COLORS, brandTheme, type BrandTheme } from './brand'
 import { AccentBar, BrandLogo, Guard, ModeBadge, Period, PhotoLayer, Reward, Ticks, Title } from './parts'
 import { titleSize } from './layout'
 import { RadarScene } from './RadarScene'
-import { GoalGauge, NetworkBackdrop, VersusArena } from './hero'
+import { usePhotoUrl } from '../photos/image'
+import { AIRLINER, GoalGauge, NetworkBackdrop, VersusArena } from './hero'
 import { ApproachScene, BoardScene, CockpitScene, ContrailsScene, HoldingScene, RunwayScene, type BoardRow } from './scenes'
 
 interface Ctx<T> {
@@ -195,14 +196,37 @@ export function TourBanner(ctx: Ctx<TourData>) {
 }
 
 // ── Roster / Curated roster ────────────────────────────────────────────────
+/** Stops as a line with nodes (metro-map style): ICAO and city under each node. */
+function RouteLine({ stops, brand, lang }: { stops: string[]; brand: BrandTheme; lang: Locale }) {
+  const db = useAirportDb()
+  if (stops.length < 2) return null
+  return (
+    <div className="b-routeline" style={{ ['--n' as string]: stops.length }}>
+      <span className="b-routeline__track" style={{ background: `linear-gradient(90deg, ${brand.accent}, ${brand.accentSoft})`, boxShadow: `0 0 18px ${brand.routeGlow}` }} />
+      {stops.map((icao, i) => {
+        const a = db?.byIcao.get(icao)
+        return (
+          <span className="b-routeline__stop" key={i}>
+            <span className="b-routeline__node" style={{ borderColor: i === 0 || i === stops.length - 1 ? brand.accentSoft : '#fff' }} />
+            <b>{icao}</b>
+            <i>{cityName(a, lang)}</i>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 function AircraftVisual({ ctx }: { ctx: Ctx<RosterData | SlottedData> }) {
   const { data, brand } = ctx
+  const { url } = usePhotoUrl(data.photo)
   return (
     <>
-      <div className="b-aircraft-bg" />
-      <PhotoLayer className="b-photo--aircraft" photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } } as never) : undefined} />
+      <div className="b-aircraft-bg" style={{ background: `radial-gradient(70% 90% at 78% 42%, ${brand.accent}26 0%, #0b111c 55%, #05070b 100%)` }} />
+      {url
+        ? <PhotoLayer className="b-photo--aircraft" photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } } as never) : undefined} />
+        : <AircraftSilhouette brand={brand} />}
       <div className="b-aircraft-fade" />
-      <div className="b-aircraft-slash" style={{ background: brand.gradient }} />
       {(data.aircraft.model || data.aircraft.reg) && (
         <div className="b-aircraft-tag">
           <Plane size={26} color={brand.accentSoft} />
@@ -212,6 +236,30 @@ function AircraftVisual({ ctx }: { ctx: Ctx<RosterData | SlottedData> }) {
         </div>
       )}
     </>
+  )
+}
+
+/** Stand-in until a photo is set: a large airliner in the project colours with contrails. */
+function AircraftSilhouette({ brand }: { brand: BrandTheme }) {
+  return (
+    <svg className="scene" viewBox="0 0 1920 1080">
+      <defs>
+        <linearGradient id="ac-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={brand.accentSoft} />
+          <stop offset="1" stopColor={brand.accent} stopOpacity="0.55" />
+        </linearGradient>
+        <linearGradient id="ac-trail" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <filter id="ac-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="30" /></filter>
+      </defs>
+      <g transform="translate(1340 500) rotate(42) scale(9.2) translate(-50 -50)">
+        {[30.5, 69.5].map((x) => <rect key={x} x={x - 0.6} y={60} width={1.2} height={160} fill="url(#ac-trail)" />)}
+        <path d={AIRLINER} fill={brand.accent} opacity={0.5} filter="url(#ac-glow)" />
+        <path d={AIRLINER} fill="url(#ac-body)" stroke="rgba(255,255,255,.55)" strokeWidth={0.25} />
+      </g>
+    </svg>
   )
 }
 
@@ -265,20 +313,7 @@ export function RosterBanner(ctx: Ctx<RosterData>) {
           <Schedule legs={data.legs} brand={brand} lang={lang} />
         ) : (
           <>
-            <div className="b-chain">
-              {chain.slice(0, 7).map((icao, i) => {
-                const a = airportSync(icao)
-                return (
-                  <span className="b-chain__item" key={i}>
-                    {i > 0 && <span className="b-chain__line" style={{ background: brand.gradient }} />}
-                    <span className="b-chain__stop">
-                      {a && <span className={`fi fi-${a.country.toLowerCase()} b-flag`} />}
-                      {icao}
-                    </span>
-                  </span>
-                )
-              })}
-            </div>
+            <RouteLine stops={chain.slice(0, 7)} brand={brand} lang={lang} />
             <Stats items={[
               { icon: <RouteIcon size={24} />, value: String(r.legs), label: c.legs },
               { icon: <Gauge size={24} />, value: fmtNum(r.nm), label: c.nm },

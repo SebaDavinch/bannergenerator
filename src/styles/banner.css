@@ -100,9 +100,8 @@
 
 /* aircraft visual */
 .b-aircraft-bg { position: absolute; inset: 0; background: radial-gradient(70% 90% at 80% 40%, #1e2c44 0%, #0b111c 60%, #05070b 100%); }
-.b-photo--aircraft { left: 640px; clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%); }
-.b-aircraft-fade { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(5,8,13,.96) 0%, rgba(5,8,13,.85) 36%, rgba(5,8,13,.2) 56%, rgba(5,8,13,0) 70%), linear-gradient(0deg, rgba(5,8,13,.8) 0%, rgba(5,8,13,0) 34%); }
-.b-aircraft-slash { position: absolute; inset: 0; z-index: 2; pointer-events: none; clip-path: polygon(870px 0, 882px 0, 652px 1080px, 640px 1080px); opacity: .95; }
+.b-photo--aircraft { left: 560px; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 34%); mask-image: linear-gradient(90deg, transparent 0%, #000 34%); }
+.b-aircraft-fade { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(5,8,13,.9) 0%, rgba(5,8,13,.7) 30%, rgba(5,8,13,.1) 52%, rgba(5,8,13,0) 66%), linear-gradient(0deg, rgba(5,8,13,.8) 0%, rgba(5,8,13,0) 34%); }
 .b-aircraft-tag {
   position: absolute; right: 96px; bottom: 196px; z-index: 4; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 18px;
   background: rgba(6,10,17,.66); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(12px);
@@ -265,3 +264,11 @@
 .b-arena__vs { position: absolute; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #0b0f17; font-family: 'Oswald'; font-weight: 700; font-size: 54px; letter-spacing: .02em; }
 
 .scene--front { z-index: 3; pointer-events: none; }
+
+/* roster route line */
+.b-routeline { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); width: 1000px; margin-top: 40px; }
+.b-routeline__track { position: absolute; left: calc(50% / var(--n)); right: calc(50% / var(--n)); top: 15px; height: 5px; border-radius: 3px; }
+.b-routeline__stop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 0; }
+.b-routeline__node { width: 34px; height: 34px; border-radius: 50%; background: #0b111c; border: 5px solid; box-shadow: 0 0 0 6px rgba(5,8,13,.85); }
+.b-routeline__stop b { font-family: 'JetBrains Mono'; font-size: 28px; margin-top: 4px; }
+.b-routeline__stop i { font-style: normal; font-size: 19px; color: rgba(255,255,255,.7); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { GallerySlot } from '../editor/gallerySlot'
 import { ImagePlus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import type { PhotoCandidate } from '../photos/commons'
 import { fileToDataUrl } from '../photos/image'
@@ -13,16 +15,19 @@ type Candidate = PhotoCandidate & { landmark?: string }
  * Suggestion grid + upload + framing for a banner photo. Re-searches when
  * `searchKey` changes and auto-picks the best hit unless the user chose one.
  */
-export function PhotoPicker({ photo, onChange, search, searchKey, framing = true, dimDefault = 0 }: {
+export function PhotoPicker({ photo, onChange, search, searchKey, framing = true, dimDefault = 0, title }: {
   photo: PhotoState
   onChange: (p: Partial<PhotoState>) => void
   search: (signal: AbortSignal) => Promise<Candidate[]>
   searchKey: string
   framing?: boolean
   dimDefault?: number
+  /** Gallery heading under the preview. */
+  title?: string
 }) {
   const { state } = useStore()
   const t = UI[state.locale]
+  const slot = useContext(GallerySlot)
   const [results, setResults] = useState<Candidate[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -56,15 +61,57 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
     return () => ctrl.abort()
   }, [searchKey])
 
+  // Paste a copied image (e.g. from JetPhotos) anywhere on the page while this picker is shown.
+  const onFileRef = useRef<(f?: File) => void>(() => undefined)
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (file) { e.preventDefault(); onFileRef.current(file) }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [])
+
   const onFile = async (file?: File) => {
     if (!file) return
     const local = await fileToDataUrl(file)
     onChange({ local, src: '', credit: '', title: file.name, auto: false, x: 50, y: 50, zoom: 1, dim: photo.dim || dimDefault })
   }
 
+  useEffect(() => { onFileRef.current = (f) => { void onFile(f) } })
   const selected = photo.local || photo.src
+  // Suggestions live under the preview (right column) when that slot exists.
+  const gallery = (results !== null || loading) && (
+    <section className="gallery">
+      <header className="gallery__head">
+        <span className="gallery__title">{title ?? t.photoGallery}</span>
+        {results && results.length > 0 && <span className="gallery__count">{results.length}</span>}
+        {loading && <span className="gallery__status"><RefreshCw size={13} className="spin" /> {t.searching}</span>}
+        <span className="gallery__hint">{t.pasteHint}</span>
+      </header>
+      {results && results.length > 0 && (
+        <div className="photo-grid photo-grid--wide">
+          {results.map((c) => (
+            <button type="button" key={c.url} className={`photo-grid__item ${photo.src === c.url ? 'is-active' : ''}`} title={`${c.title}\n${c.credit}`}
+              onClick={() => onChange({ src: c.url, local: undefined, credit: c.credit, title: c.landmark || c.title, auto: false, x: 50, y: 50, zoom: 1 })}>
+              <img src={c.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />
+              <span className="photo-grid__label">
+                {c.landmark && <b>{c.landmark}</b>}
+                <i>{c.provider}{c.width ? ` · ${c.width}×${c.height}` : ''}</i>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {results && results.length === 0 && !loading && <p className={error ? 'warn small' : 'muted small'}>{error ? t.photoBlocked : t.noPhotos}</p>}
+    </section>
+  )
   return (
-    <div className="photo-picker">
+    <div className="photo-picker"
+      onDragOver={(e) => { if ([...e.dataTransfer.items].some((i) => i.type.startsWith('image/'))) e.preventDefault() }}
+      onDrop={(e) => { const f = [...e.dataTransfer.files].find((x) => x.type.startsWith('image/')); if (f) { e.preventDefault(); void onFile(f) } }}>
       <div className="photo-picker__bar">
         <Button size="sm" variant="primary" icon={loading ? RefreshCw : Sparkles} disabled={loading} onClick={() => run(false)} className={loading ? 'is-spinning' : ''}>
           {loading ? t.searching : t.findPhotos}
@@ -74,23 +121,8 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
       </div>
 
-      {results && results.length > 0 && (
-        <div className="photo-grid">
-          {results.map((c) => (
-            <button type="button" key={c.url} className={`photo-grid__item ${photo.src === c.url ? 'is-active' : ''}`} title={`${c.title}\n${c.credit}`}
-              onClick={() => onChange({ src: c.url, local: undefined, credit: c.credit, title: c.landmark || c.title, auto: false, x: 50, y: 50, zoom: 1 })}>
-              <img src={c.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />
-              {(c.landmark || c.width) && (
-                <span className="photo-grid__label">
-                  {c.landmark && <b>{c.landmark}</b>}
-                  <i>{c.width}×{c.height}</i>
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-      {results && results.length === 0 && !loading && <p className="muted small">{t.noPhotos}{error ? ` (${t.offline})` : ''}</p>}
+      {!slot && gallery}
+      {slot && createPortal(gallery, slot)}
       {(photo.credit || photo.title) && selected && <p className="photo-picker__credit">{photo.title}{photo.credit && ` — ${photo.credit}`}</p>}
 
       {framing && selected && (

@@ -17,7 +17,7 @@ async function fromBackend(reg: string, project: Project, signal?: AbortSignal):
   const params = new URLSearchParams({ limit: '8' })
   if (project.fleet) params.set('source', project.fleet)
   const res = await fetch(`${apiBase()}/aircraft/photos/${encodeURIComponent(reg)}?${params}`, { signal })
-  if (!res.ok) return []
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) throw new Error(`backend ${res.status}`)
   const body = (await res.json()) as { items: { provider: string; image_url: string; thumbnail_url?: string; attribution?: string; linkback?: string }[] }
   return body.items.map((p) => ({
     url: p.image_url, thumb: p.thumbnail_url || p.image_url, title: reg, credit: [p.attribution, p.provider].filter(Boolean).join(' · '),
@@ -28,7 +28,7 @@ async function fromBackend(reg: string, project: Project, signal?: AbortSignal):
 
 async function fromPlanespotters(reg: string, signal?: AbortSignal): Promise<PhotoCandidate[]> {
   const res = await fetch(`https://api.planespotters.net/pub/photos/reg/${encodeURIComponent(reg)}`, { signal })
-  if (!res.ok) return []
+  if (!res.ok) throw new Error(`planespotters ${res.status}`)
   const body = (await res.json()) as { photos?: { thumbnail_large?: { src: string; size: { width: number; height: number } }; thumbnail?: { src: string }; link: string; photographer: string }[] }
   return (body.photos ?? []).filter((p) => p.thumbnail_large).map((p) => ({
     url: p.thumbnail_large!.src, thumb: p.thumbnail?.src ?? p.thumbnail_large!.src, title: reg, credit: `© ${p.photographer} · Planespotters.net`,
@@ -45,14 +45,19 @@ async function fromPlanespotters(reg: string, signal?: AbortSignal): Promise<Pho
  */
 export async function searchAircraftPhotos(opts: { reg: string; type: string; project: Project }, signal?: AbortSignal) {
   const reg = opts.reg.trim().toUpperCase()
+  // Count sources that answered at all, so "nothing found" and "unreachable" read differently.
+  let reached = 0
+  let failed = 0
+  const track = (p: Promise<PhotoCandidate[]>) => p.then((r) => { reached++; return r }, (e) => { if (e?.name === 'AbortError') throw e; failed++; return [] as PhotoCandidate[] })
   const tasks: Promise<PhotoCandidate[]>[] = []
   if (reg) {
-    tasks.push(fromBackend(reg, opts.project, signal).catch(() => []))
-    tasks.push(commonsCategory(`${reg} (aircraft)`, signal).then((l) => l.map((c) => ({ ...c, score: 80 + rateForBanner(c) }))).catch(() => []))
-    tasks.push(commonsSearch(`"${reg}"`, signal, 20).then((l) => l.filter((c) => c.title.toUpperCase().replace(/\s/g, '').includes(reg.replace(/\s/g, ''))).map((c) => ({ ...c, score: 70 + rateForBanner(c) }))).catch(() => []))
-    tasks.push(fromPlanespotters(reg, signal).catch(() => []))
+    tasks.push(track(fromBackend(reg, opts.project, signal)))
+    tasks.push(track(commonsCategory(`${reg} (aircraft)`, signal).then((l) => l.map((c) => ({ ...c, score: 80 + rateForBanner(c) })))))
+    tasks.push(track(commonsSearch(`"${reg}"`, signal, 20).then((l) => l.filter((c) => c.title.toUpperCase().replace(/\s/g, '').includes(reg.replace(/\s/g, ''))).map((c) => ({ ...c, score: 70 + rateForBanner(c) })))))
+    tasks.push(track(fromPlanespotters(reg, signal)))
   }
   const exact = (await Promise.all(tasks)).flat()
+  if (tasks.length && !reached && failed) throw new Error('unreachable')
   let all = exact
   if (exact.filter((c) => c.score >= 80).length < 3 && opts.type) {
     const model = typeName(opts.type)

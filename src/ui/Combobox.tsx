@@ -5,13 +5,15 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
  * (callers pass already-filtered items).
  */
 export function Combobox<T>({
-  value, onInput, items, renderItem, onPick, placeholder, mono, leading, footer, autoFocus,
+  value, onInput, items, renderItem, onPick, onCommit, placeholder, mono, leading, footer, autoFocus,
 }: {
   value: string
   onInput: (v: string) => void
   items: T[]
   renderItem: (item: T, active: boolean) => ReactNode
   onPick: (item: T) => void
+  /** Free text accepted with Enter (no suggestion highlighted) or on blur. */
+  onCommit?: (text: string) => void
   placeholder?: string
   mono?: boolean
   leading?: ReactNode
@@ -42,11 +44,13 @@ export function Combobox<T>({
           role="combobox" aria-expanded={show} aria-controls={listId} autoComplete="off" spellCheck={false}
           value={value} placeholder={placeholder} autoFocus={autoFocus}
           onFocus={() => setOpen(true)}
+          onBlur={() => onCommit?.(value)}
           onChange={(e) => { onInput(e.target.value); setOpen(true); setActive(0) }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(items.length - 1, a + 1)) }
             else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)) }
             else if (e.key === 'Enter' && show && items[current]) { e.preventDefault(); pick(items[current]) }
+            else if (e.key === 'Enter' && onCommit) { e.preventDefault(); onCommit(value); setOpen(false) }
             else if (e.key === 'Escape') setOpen(false)
           }}
         />

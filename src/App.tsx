@@ -7,6 +7,7 @@ import { loadVatsim } from './data/vatsim'
 import { loadWorld } from './data/geo'
 import { loadFleet } from './data/fleet'
 import { Preview } from './editor/Preview'
+import { GallerySlot } from './editor/gallerySlot'
 import { ProjectSwitcher } from './editor/ProjectSwitcher'
 import { ProjectsDialog } from './editor/ProjectsDialog'
 import { projectById, useProjects } from './data/projects'
@@ -47,6 +48,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [history, setHistory] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
+  const [gallerySlot, setGallerySlot] = useState<HTMLElement | null>(null)
   useProjects()
   const project = projectById(state.brand)
   const appStyle = {
@@ -112,9 +114,10 @@ export default function App() {
           ))}
         </nav>
 
+        <GallerySlot.Provider value={gallerySlot}>
         <main className="workspace">
           <section className="workspace__preview">
-            <Preview stageRef={stageRef} />
+            <Preview stageRef={stageRef} onGallerySlot={setGallerySlot} />
           </section>
           <section className="workspace__editor">
             <div className="editor-head">
@@ -131,6 +134,7 @@ export default function App() {
             </div>
           </section>
         </main>
+        </GallerySlot.Provider>
       </div>
       <footer className="footer">{t.footer} · <a href="https://twitch.tv/sebadavinch" target="_blank" rel="noreferrer">Grigorii — NWS0001</a></footer>
       {exporting && <ExportDialog stageRef={stageRef} onClose={() => setExporting(false)} />}

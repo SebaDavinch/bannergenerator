@@ -7,7 +7,7 @@ import { UI } from '../i18n'
 import { MapToolbar } from './MapToolbar'
 import { activeMap } from './activeMap'
 
-export function Preview({ stageRef }: { stageRef: RefObject<HTMLDivElement | null> }) {
+export function Preview({ stageRef, onGallerySlot }: { stageRef: RefObject<HTMLDivElement | null>; onGallerySlot?: (el: HTMLDivElement | null) => void }) {
   const { state } = useStore()
   const t = UI[state.locale]
   const frame = useRef<HTMLDivElement>(null)
@@ -48,6 +48,7 @@ export function Preview({ stageRef }: { stageRef: RefObject<HTMLDivElement | nul
         )}
         <MapToolbar guides={guides} onGuides={setGuides} />
       </div>
+      <div className="gallery-slot" ref={onGallerySlot} />
     </div>
   )
 }
