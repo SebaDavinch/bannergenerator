@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  CalendarClock, Circle, Download, Globe2, Handshake, History, ListOrdered, MapPin, NotebookPen, Radar, RotateCcw, Route, Swords, X, type LucideIcon,
+  CalendarClock, Circle, Download, Globe2, Handshake, History, ListOrdered, MapPin, NotebookPen, Radar, RotateCcw, Route, Swords, type LucideIcon,
 } from 'lucide-react'
 import { loadAirports } from './data/airports'
 import { loadVatsim } from './data/vatsim'
 import { loadWorld } from './data/geo'
 import { loadFleet } from './data/fleet'
 import { Preview } from './editor/Preview'
+import { ProjectSwitcher } from './editor/ProjectSwitcher'
+import { ProjectsDialog } from './editor/ProjectsDialog'
+import { projectById, useProjects } from './data/projects'
+import { mix } from './map/themes'
 import { ChallengeForm, CollabForm, FocusForm, GoalForm, RosterForm, SlottedForm, TourForm, VatsimForm } from './editor/forms'
 import { ExportDialog } from './export/ExportDialog'
-import { removeHistory, useHistory } from './export/history'
+import { HistoryPanel } from './export/HistoryPanel'
 import { MODES, UI } from './i18n'
 import { useStore } from './state/store'
-import type { ModeDataMap, ModeId } from './types'
+import type { ModeId } from './types'
 import { Button, Segmented } from './ui/controls'
 
 const MODE_ICONS: Record<string, LucideIcon> = { MapPin, Route, ListOrdered, NotebookPen, Swords, Radar, CalendarClock, Handshake, Globe2 }
@@ -36,42 +40,22 @@ function ModeForm({ mode }: { mode: ModeId }) {
   }
 }
 
-function HistoryDrawer({ onClose }: { onClose: () => void }) {
-  const { state, set, update } = useStore()
-  const t = UI[state.locale]
-  const items = useHistory()
-  return (
-    <div className="drawer" role="dialog" aria-label={t.history}>
-      <header className="drawer__head">
-        <h2>{t.history}</h2>
-        <Button variant="ghost" icon={X} onClick={onClose} aria-label={t.close} />
-      </header>
-      <div className="drawer__body">
-        {items.length === 0 && <p className="muted">{t.historyEmpty}</p>}
-        {items.map((h) => (
-          <div className="history-item" key={h.id}>
-            <img src={h.thumb} alt="" />
-            <div className="history-item__meta">
-              <b>{h.title}</b>
-              <span>{MODES.find((m) => m.id === h.mode)?.label[state.locale]} · {h.brand.toUpperCase()} · {new Date(h.at).toLocaleString(state.locale === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}</span>
-              <div className="history-item__actions">
-                <Button size="sm" onClick={() => { update(h.mode, h.data as Partial<ModeDataMap[typeof h.mode]>); set({ mode: h.mode, brand: h.brand }); onClose() }}>{t.open}</Button>
-                <Button size="sm" variant="ghost" icon={X} onClick={() => removeHistory(h.id)} aria-label="remove" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function App() {
   const { state, set, resetMode } = useStore()
   const t = UI[state.locale]
   const stageRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
   const [history, setHistory] = useState(false)
+  const [projectsOpen, setProjectsOpen] = useState(false)
+  useProjects()
+  const project = projectById(state.brand)
+  const appStyle = {
+    '--p-accent': project.colors.primary,
+    '--p-grad': `linear-gradient(135deg, ${mix(project.colors.primary, '#ffffff', 0.18)} 0%, ${project.colors.primary} 55%, ${mix(project.colors.primary, '#000000', 0.3)} 100%)`,
+    '--p-glow': `0 0 0 1px ${project.colors.primary}59, 0 4px 24px ${project.colors.primary}59`,
+    '--p-soft': `${project.colors.primary}29`,
+    '--p-ring': `${project.colors.primary}73`,
+  } as React.CSSProperties
   const mode = MODES.find((m) => m.id === state.mode)!
 
   useEffect(() => {
@@ -88,10 +72,10 @@ export default function App() {
   }, [])
 
   return (
-    <div className="app" data-brand={state.brand}>
+    <div className="app" data-brand={state.brand} style={appStyle}>
       <header className="topbar">
         <div className="topbar__brand">
-          <span className="topbar__mark">N</span>
+          <span className="topbar__mark">{project.icao.slice(0, 1)}</span>
           <div>
             <div className="topbar__title">{t.appTitle}</div>
             <div className="topbar__sub">{t.appSubtitle}</div>
@@ -100,7 +84,7 @@ export default function App() {
         <div className="topbar__spacer" />
         <div className="topbar__group">
           <span className="topbar__label">{t.brand}</span>
-          <Segmented size="sm" value={state.brand} onChange={(brand) => set({ brand })} options={[{ value: 'nws', label: 'vNWS' }, { value: 'rag', label: 'RAG' }]} />
+          <ProjectSwitcher onManage={() => setProjectsOpen(true)} />
         </div>
         <div className="topbar__group">
           <span className="topbar__label">{t.bannerLang}</span>
@@ -150,7 +134,8 @@ export default function App() {
       </div>
       <footer className="footer">{t.footer} · <a href="https://twitch.tv/sebadavinch" target="_blank" rel="noreferrer">Grigorii — NWS0001</a></footer>
       {exporting && <ExportDialog stageRef={stageRef} onClose={() => setExporting(false)} />}
-      {history && <HistoryDrawer onClose={() => setHistory(false)} />}
+      {history && <HistoryPanel onClose={() => setHistory(false)} />}
+      {projectsOpen && <ProjectsDialog onClose={() => setProjectsOpen(false)} />}
     </div>
   )
 }

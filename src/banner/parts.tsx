@@ -2,10 +2,11 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { ClipboardCheck } from 'lucide-react'
 import { BANNER_COPY } from '../i18n'
 import { usePhotoUrl } from '../photos/image'
-import type { Brand, Locale, PhotoState } from '../types'
-import { BRANDS, type BrandTheme } from './brand'
+import type { Project } from '../data/projects'
+import type { Locale, PhotoState } from '../types'
+import type { BrandTheme } from './brand'
 import { useStage } from './context'
-import { titleSize } from './layout'
+import { rewardSize, titleSize } from './layout'
 
 export function ModeBadge({ label, brand, extra }: { label: string; brand: BrandTheme; extra?: ReactNode }) {
   return (
@@ -17,8 +18,9 @@ export function ModeBadge({ label, brand, extra }: { label: string; brand: Brand
   )
 }
 
-export function Title({ text, size, style }: { text: string; size?: number; style?: CSSProperties }) {
-  return <h1 className="b-title" style={{ fontSize: size ?? titleSize(text), ...style }}>{text}</h1>
+/** Width is explicit (not shrink-to-fit) so the export wraps exactly like the preview. */
+export function Title({ text, size, width = 1180, style }: { text: string; size?: number; width?: number; style?: CSSProperties }) {
+  return <h1 className="b-title" style={{ fontSize: size ?? titleSize(text), width, ...style }}>{text}</h1>
 }
 
 export function Ticks({ brand }: { brand: BrandTheme }) {
@@ -48,7 +50,7 @@ export function Reward({ points, registration, lang, brand, style, label }: { po
       {points.trim() && (
         <>
           <div className="b-reward__eyebrow" style={{ color: brand.accentSoft }}>{label ?? c.reward}</div>
-          <div className="b-reward__main">
+          <div className="b-reward__main" style={{ fontSize: rewardSize(`${c.earn} ${points} ${c.bonus}`) }}>
             {c.earn} <span style={{ color: brand.accentSoft }}>{points}</span> {c.bonus}
           </div>
         </>
@@ -60,9 +62,15 @@ export function Reward({ points, registration, lang, brand, style, label }: { po
   )
 }
 
-export function BrandLogo({ brand, style }: { brand: Brand; style?: CSSProperties }) {
-  const b = BRANDS[brand]
-  return <img className="b-logo" src={b.logo} alt={b.name} style={{ height: b.logoHeight, ...style }} />
+/** Project logo, or an Oswald wordmark in the project colour when no artwork is set. */
+export function BrandLogo({ project, style }: { project: Project; style?: CSSProperties }) {
+  if (project.logo) return <img className="b-logo" src={project.logo} alt={project.name} style={{ height: project.logoHeight, ...style }} />
+  return (
+    <div className="b-wordmark" style={style}>
+      <span className="b-wordmark__mark" style={{ background: project.colors.primary }}>{project.icao.slice(0, 3)}</span>
+      <span className="b-wordmark__text"><b>{project.short}</b><i>{project.name}</i></span>
+    </div>
+  )
 }
 
 export function AccentBar({ brand }: { brand: BrandTheme }) {

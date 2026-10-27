@@ -18,7 +18,11 @@ const outDir = path.join(root, 'public', 'data')
 const cacheArg = process.argv.indexOf('--cache')
 const cacheDir = cacheArg > 0 ? path.resolve(process.argv[cacheArg + 1]) : path.join(root, '.data-cache')
 
+const NE = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson'
 const SOURCES = {
+  'rivers.geojson': `${NE}/ne_10m_rivers_lake_centerlines.geojson`,
+  'lakes.geojson': `${NE}/ne_50m_lakes.geojson`,
+  'places.geojson': `${NE}/ne_10m_populated_places.geojson`,
   'airports.csv': 'https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv',
   'VATSpy.dat': 'https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/VATSpy.dat',
   'Boundaries.geojson': 'https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson',
@@ -97,6 +101,21 @@ const RU_CITY_ALIASES = {
 
 const CYRILLIC = /[Ѐ-ӿ]/
 
+let PLACES = []
+
+/** Russian city name: hand list first, then the nearest Natural Earth city (≤ 30 km) with the same English name. */
+function cityRuFor(city, lat, lon) {
+  const own = RU_CITY_ALIASES[city]
+  if (own) return own.split(' ')[0] === 'Санкт-Петербург' ? 'Санкт-Петербург' : own.replace(/\s+(Питер|СПб|Адлер)$/u, '').split(/\s{2,}/)[0]
+  const key = city.toLowerCase()
+  for (const p of PLACES) {
+    if (!p[1]) continue
+    if (Math.abs(p[4] - lat) > 0.3 || Math.abs(p[3] - lon) > 0.5) continue
+    if (p[0].toLowerCase() === key || p[0].toLowerCase().startsWith(key) || key.startsWith(p[0].toLowerCase())) return p[1]
+  }
+  return ''
+}
+
 async function buildAirports() {
   const rows = parseCsv(await source('airports.csv'))
   const network = {}
@@ -129,12 +148,13 @@ async function buildAirports() {
       icao, r.iata_code || '', shortAirportName(r.name), r.name, city, r.iso_country,
       round(Number(r.latitude_deg), 4), round(Number(r.longitude_deg), 4),
       t + (r.scheduled_service === 'yes' ? '1' : '0'), network[icao] || 0, ru, wiki.startsWith('http') ? '' : wiki,
+      cityRuFor(city, Number(r.latitude_deg), Number(r.longitude_deg)),
     ])
   }
   // Large/scheduled first so naive prefix scans hit the important ones early.
   const rank = (a) => (a[8][0] === 'L' ? 0 : a[8][0] === 'M' ? 1 : 2) - (a[9] ? 3 : 0) + (a[8][1] === '1' ? 0 : 0.5)
   out.sort((a, b) => rank(a) - rank(b) || a[0].localeCompare(b[0]))
-  const fields = ['icao', 'iata', 'name', 'fullName', 'city', 'country', 'lat', 'lon', 'kind', 'network', 'ru', 'wiki']
+  const fields = ['icao', 'iata', 'name', 'fullName', 'city', 'country', 'lat', 'lon', 'kind', 'network', 'ru', 'wiki', 'cityRu']
   fs.writeFileSync(path.join(outDir, 'airports.json'), JSON.stringify({ v: 1, fields, rows: out }))
   console.log(`airports.json: ${out.length} airports`)
 }
@@ -226,7 +246,61 @@ function buildFleet() {
   console.log(`fleet.json: ${fleet.length} aircraft`)
 }
 
+function roundLines(geometry, d) {
+  const line = (l) => {
+    const out = []
+    for (const [x, y] of l) {
+      const p = [round(x, d), round(y, d)]
+      const last = out[out.length - 1]
+      if (!last || last[0] !== p[0] || last[1] !== p[1]) out.push(p)
+    }
+    return out
+  }
+  if (geometry.type === 'LineString') return { type: 'LineString', coordinates: line(geometry.coordinates) }
+  return { type: 'MultiLineString', coordinates: geometry.coordinates.map(line) }
+}
+
+/** Rivers (10m, major only), lakes (50m) and big cities (with Russian names) for detailed tour maps. */
+async function buildPhysical() {
+  const rivers = JSON.parse(await source('rivers.geojson')).features
+    .filter((f) => f.geometry && (f.properties.scalerank ?? 99) <= 6 && f.properties.featurecla !== 'Lake Centerline')
+    .map((f) => ({ type: 'Feature', properties: { r: f.properties.scalerank }, geometry: roundLines(f.geometry, 2) }))
+  const lakes = JSON.parse(await source('lakes.geojson')).features
+    .filter((f) => f.geometry)
+    .map((f) => ({ type: 'Feature', properties: { r: f.properties.scalerank }, geometry: roundGeometry(f.geometry, 2) }))
+  fs.writeFileSync(path.join(outDir, 'physical.json'), JSON.stringify({ rivers, lakes }))
+  const places = JSON.parse(await source('places.geojson')).features
+    .filter((f) => (f.properties.POP_MAX ?? f.properties.pop_max ?? 0) >= 150000 || (f.properties.ADM0CAP ?? f.properties.adm0cap) === 1)
+    .map((f) => { const p = f.properties; return [p.NAME ?? p.name, p.NAME_RU || p.name_ru || '', p.ISO_A2 ?? p.iso_a2, round(f.geometry.coordinates[0], 3), round(f.geometry.coordinates[1], 3), p.POP_MAX ?? p.pop_max, (p.ADM0CAP ?? p.adm0cap) ? 1 : 0] })
+    .sort((a, b) => b[5] - a[5])
+  fs.writeFileSync(path.join(outDir, 'places.json'), JSON.stringify(places))
+  console.log(`physical.json: ${rivers.length} rivers, ${lakes.length} lakes; places.json: ${places.length} cities`)
+  return places
+}
+
+/** Low-zoom Terrarium elevation tiles bundled for offline relief; higher zooms stream from AWS Open Data. */
+async function buildTerrain() {
+  const dir = path.join(root, 'public', 'terrain')
+  let n = 0
+  for (let z = 0; z <= 3; z++) {
+    for (let x = 0; x < 2 ** z; x++) {
+      for (let y = 0; y < 2 ** z; y++) {
+        const file = path.join(dir, String(z), String(x), `${y}.png`)
+        if (fs.existsSync(file)) { n++; continue }
+        const res = await fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`)
+        if (!res.ok) continue
+        fs.mkdirSync(path.dirname(file), { recursive: true })
+        fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()))
+        n++
+      }
+    }
+  }
+  console.log(`terrain: ${n} tiles (z0–3)`)
+}
+
 fs.mkdirSync(outDir, { recursive: true })
+PLACES = await buildPhysical()
+await buildTerrain()
 await buildAirports()
 await buildVatsim()
 buildFleet()

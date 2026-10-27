@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowLeftRight, CalendarDays, Clock, Gauge, MapPin, Plane, Radio, Route as RouteIcon, Users } from 'lucide-react'
-import { airportSync, greatCircleNm, useAirportDb } from '../data/airports'
+import { ArrowLeftRight, CalendarDays, Clock, Gauge, Globe2, MapPin, Plane, Radio, Route as RouteIcon, Users } from 'lucide-react'
+import { airportSync, cityName, greatCircleNm, useAirportDb } from '../data/airports'
 import { useVatsimDb } from '../data/vatsim'
 import { BANNER_COPY, MODES, countUnit } from '../i18n'
 import { rng, hashString } from '../lib/rng'
 import { RouteMap, type MapRoute, type MapShape, type MapStop } from '../map/RouteMap'
-import { MAP_THEMES } from '../map/themes'
+import { paletteFor } from '../map/themes'
+import { networkBit, projectById, type Project } from '../data/projects'
 import { fmtNum, toStop, useAirports, useLegRoute } from '../map/stops'
 import type {
-  Brand, ChallengeData, CollabData, FocusData, GoalData, Locale, MapView, ModeId, RosterData, SlottedData, TourData, VatsimData,
+  ChallengeData, CollabData, FocusData, GoalData, Locale, MapView, ModeId, RosterData, SlottedData, TourData, VatsimData,
 } from '../types'
-import { BRANDS, TEAM_COLORS, type BrandTheme } from './brand'
+import { TEAM_COLORS, brandTheme, type BrandTheme } from './brand'
 import { AccentBar, BrandLogo, Guard, ModeBadge, Period, PhotoLayer, Reward, Ticks, Title } from './parts'
 import { titleSize } from './layout'
 import { RadarScene } from './RadarScene'
@@ -21,7 +22,7 @@ interface Ctx<T> {
   data: T
   patch?: (p: Partial<T>) => void
   brand: BrandTheme
-  brandId: Brand
+  project: Project
   lang: Locale
   mode: ModeId
 }
@@ -41,18 +42,20 @@ function Footer({ ctx, points, registration, logos }: { ctx: Ctx<unknown>; point
   return (
     <>
       <Reward points={points} registration={registration} lang={ctx.lang} brand={ctx.brand} />
-      <div className="b-logos">{logos ?? <BrandLogo brand={ctx.brandId} />}</div>
+      <div className="b-logos">{logos ?? <BrandLogo project={ctx.project} />}</div>
     </>
   )
 }
 
-function MapLayer({ view, onView, routes, extra, shapes, accent, labelCity, fitShapes }: {
+function MapLayer({ view, onView, routes, extra, shapes, accent, labelCity, fitShapes, project, lang, numbered }: {
   view: MapView; onView?: (v: Partial<MapView>) => void; routes: MapRoute[]; extra?: MapStop[]; shapes?: MapShape[]; accent: string; labelCity?: boolean; fitShapes?: boolean
+  project: Project; lang: Locale; numbered?: boolean
 }) {
-  const light = MAP_THEMES[view.theme]?.light
+  const palette = paletteFor(view.theme, project.colors)
+  const light = palette.light
   return (
     <>
-      <RouteMap view={view} onView={onView} routes={routes} extraStops={extra} shapes={shapes} accent={accent} labelCity={labelCity} fitShapes={fitShapes} />
+      <RouteMap view={view} onView={onView} routes={routes} extraStops={extra} shapes={shapes} accent={accent} labelCity={labelCity} fitShapes={fitShapes} palette={palette} lang={lang} numbered={numbered} />
       {view.frame === 'content' && view.guard > 0 && <Guard strength={light ? Math.min(1, view.guard + 0.1) : view.guard} light={light} />}
       {view.frame === 'full' && view.guard > 0 && <Guard strength={view.guard * 0.75} from="bottom" />}
     </>
@@ -100,7 +103,7 @@ function Stats({ items }: { items: { icon: React.ReactNode; value: string; label
 export function FocusBanner(ctx: Ctx<FocusData>) {
   const { data, brand, lang } = ctx
   const a = data.airport
-  const city = (data.cityOverride || a?.city || '').trim()
+  const city = (data.cityOverride || cityName(a, lang)).trim()
   const coord = a ? `${Math.abs(a.lat).toFixed(2)}°${a.lat >= 0 ? 'N' : 'S'}  ${Math.abs(a.lon).toFixed(2)}°${a.lon >= 0 ? 'E' : 'W'}` : ''
   return (
     <Frame brand={brand}>
@@ -130,22 +133,56 @@ export function FocusBanner(ctx: Ctx<FocusData>) {
 }
 
 // ── Tour ───────────────────────────────────────────────────────────────────
+function Itinerary({ legs, brand, lang }: { legs: TourData['legs']; brand: BrandTheme; lang: Locale }) {
+  const db = useAirportDb()
+  // Stops in visiting order, numbered like the map markers.
+  const stops: { icao: string; nm: number | null }[] = []
+  legs.filter((l) => l.from && l.to).forEach((l, i) => {
+    if (i === 0) stops.push({ icao: l.from, nm: null })
+    const a = db?.byIcao.get(l.from)
+    const b = db?.byIcao.get(l.to)
+    stops.push({ icao: l.to, nm: a && b ? Math.round(greatCircleNm(a, b)) : null })
+  })
+  const shown = stops.length > 8 ? [...stops.slice(0, 7), stops[stops.length - 1]] : stops
+  return (
+    <ol className="b-itinerary">
+      {shown.map((s, i) => {
+        const a = db?.byIcao.get(s.icao)
+        // Same number as the map marker: first visit order, so a return to the start repeats its number.
+        const order = [...new Set(stops.map((x) => x.icao))]
+        const n = order.indexOf(s.icao) + 1
+        return (
+          <li key={`${s.icao}-${i}`} className="b-itinerary__stop">
+            <span className="b-itinerary__n" style={{ background: brand.gradient }}>{n}</span>
+            {a && <span className={`fi fi-${a.country.toLowerCase()} b-flag`} />}
+            <b>{s.icao}</b>
+            <i>{cityName(a, lang)}</i>
+            {s.nm !== null && <span className="b-itinerary__nm">+{fmtNum(s.nm)} NM</span>}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 export function TourBanner(ctx: Ctx<TourData>) {
   const { data, brand, lang } = ctx
   const c = BANNER_COPY[lang]
   const r = useLegRoute(data.legs, 'tour', brand.route, brand.routeGlow)
+  const itinerary = data.layout === 'itinerary'
   return (
     <Frame brand={brand}>
-      <MapLayer view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} />
+      <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} numbered={itinerary} />
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
-        <Title text={data.title} size={titleSize(data.title, { max: 120, min: 70, width: 720, lines: 2.4 })} />
+        <Title text={data.title} width={900} size={titleSize(data.title, { max: itinerary ? 104 : 120, min: 64, width: 720, lines: 2.4 })} />
         <Ticks brand={brand} />
-        {data.description && <p className="b-desc">{data.description}</p>}
-        <LegChips legs={data.legs} brand={brand} />
+        {data.description && !itinerary && <p className="b-desc">{data.description}</p>}
+        {itinerary ? <Itinerary legs={data.legs} brand={brand} lang={lang} /> : <LegChips legs={data.legs} brand={brand} />}
         <Stats items={[
           { icon: <RouteIcon size={24} />, value: String(r.legs), label: c.legs },
           { icon: <MapPin size={24} />, value: String(r.airports), label: c.airports },
+          ...(r.countries > 1 ? [{ icon: <Globe2 size={24} />, value: String(r.countries), label: c.countries }] : []),
           { icon: <Gauge size={24} />, value: fmtNum(r.nm), label: c.nm },
         ]} />
       </div>
@@ -191,9 +228,9 @@ function Schedule({ legs, brand, lang }: { legs: RosterData['legs']; brand: Bran
           <div className="b-schedule__row" key={l.id}>
             <span className="b-schedule__n" style={{ color: brand.accentSoft }}>{String(i + 1).padStart(2, '0')}</span>
             <span className="b-schedule__flight">{l.note || `${brand.callsign}${(hashString(l.from + l.to + i) % 8000) + 1000}`}</span>
-            <span className="b-schedule__ap">{a && <span className={`fi fi-${a.country.toLowerCase()} b-flag`} />}<b>{l.from}</b><i>{a?.city}</i></span>
+            <span className="b-schedule__ap">{a && <span className={`fi fi-${a.country.toLowerCase()} b-flag`} />}<b>{l.from}</b><i>{cityName(a, lang)}</i></span>
             <span className="b-schedule__arrow" style={{ color: brand.accentSoft }}>→</span>
-            <span className="b-schedule__ap">{b && <span className={`fi fi-${b.country.toLowerCase()} b-flag`} />}<b>{l.to}</b><i>{b?.city}</i></span>
+            <span className="b-schedule__ap">{b && <span className={`fi fi-${b.country.toLowerCase()} b-flag`} />}<b>{l.to}</b><i>{cityName(b, lang)}</i></span>
             <span className="b-schedule__nm">{a && b ? fmtNum(Math.round(greatCircleNm(a, b))) : '—'}</span>
           </div>
         )
@@ -215,11 +252,11 @@ export function RosterBanner(ctx: Ctx<RosterData>) {
   return (
     <Frame brand={brand}>
       {data.visual === 'map'
-        ? <MapLayer view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} />
+        ? <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} />
         : <AircraftVisual ctx={ctx} />}
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
-        <Title text={data.title} size={titleSize(data.title, { max: 116, min: 68, width: 720, lines: 2.4 })} />
+        <Title text={data.title} width={900} size={titleSize(data.title, { max: 116, min: 68, width: 720, lines: 2.4 })} />
         <Ticks brand={brand} />
         {data.description && <p className="b-desc">{data.description}</p>}
         {curated ? (
@@ -254,8 +291,9 @@ export function RosterBanner(ctx: Ctx<RosterData>) {
 }
 
 // ── Community Challenge ───────────────────────────────────────────────────
-function useBoardRows(seed: number, callsign: string, brandBit: number): BoardRow[] {
+function useBoardRows(seed: number, callsign: string, brandBit: number, lang: Locale): BoardRow[] {
   const db = useAirportDb()
+  const c = BANNER_COPY[lang]
   const r = rng(seed)
   const pool = db ? db.list.filter((a) => a.network & brandBit && a.size !== 'S').slice(0, 300) : []
   return Array.from({ length: 11 }, (_, i) => {
@@ -264,34 +302,34 @@ function useBoardRows(seed: number, callsign: string, brandBit: number): BoardRo
     return {
       time: `${String(h).padStart(2, '0')}:${String(Math.floor(r() * 12) * 5).padStart(2, '0')}`,
       flight: `${callsign}${Math.floor(100 + r() * 8900)}`,
-      dest: (a?.city || 'MOSCOW').toUpperCase().slice(0, 13),
-      status: ['BOARDING', 'ON TIME', 'GATE 12', 'DEPARTED', 'ON TIME'][Math.floor(r() * 5)],
+      dest: (cityName(a, lang) || 'MOSCOW').toUpperCase().slice(0, 13),
+      status: [c.stBoarding, c.stOnTime, `${c.stGate} 12`, c.stDeparted, c.stOnTime][Math.floor(r() * 5)],
     }
   })
 }
 
 export function ChallengeBanner(ctx: Ctx<ChallengeData>) {
-  const { data, brand, lang, brandId } = ctx
+  const { data, brand, lang, project } = ctx
   const teams = data.teams.slice(0, 4)
   const seed = hashString(data.title)
   const lanes = teams.map((_, i) => ({ color: TEAM_COLORS[i], label: ['09L', '09C', '09R', '27'][teams.length === 2 ? [0, 2][i] : i] ?? '' }))
   const tracks = teams.map((t, i) => ({ color: TEAM_COLORS[i], label: t.name.toUpperCase() }))
-  const rows = useBoardRows(seed, brand.callsign, brandId === 'rag' ? 2 : 1)
+  const rows = useBoardRows(seed, brand.callsign, networkBit(project) || 3, lang)
   const teamRows: BoardRow[] = teams.map((t, i) => ({
     time: String(i + 1).padStart(2, '0') + ':00', flight: t.name.replace(/^team\s+/i, '').slice(0, 7), dest: `${fmtNum(t.target)} ${t.countType}`.toUpperCase().slice(0, 9),
-    status: 'RACING', color: TEAM_COLORS[i],
+    status: BANNER_COPY[lang].stRacing, color: TEAM_COLORS[i],
   }))
   return (
     <Frame brand={brand}>
       {data.scene === 'photo' && <PhotoLayer photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } }) : undefined} />}
       {data.scene === 'runways' && <RunwayScene lanes={lanes} seed={seed} />}
-      {data.scene === 'holding' && <HoldingScene tracks={tracks} seed={seed} />}
-      {data.scene === 'board' && <BoardScene compact rows={[...teamRows, ...rows].slice(0, 13)} title="CHALLENGE BOARD" />}
+      {data.scene === 'holding' && <HoldingScene tracks={tracks} seed={seed} lang={lang} />}
+      {data.scene === 'board' && <BoardScene compact lang={lang} rows={[...teamRows, ...rows].slice(0, 13)} title={BANNER_COPY[lang].challengeBoard} />}
       {data.scene === 'contrails' && <ContrailsScene colors={TEAM_COLORS.slice(0, Math.max(2, teams.length))} seed={seed} count={teams.length * 3} />}
       <div className="b-scrim b-scrim--challenge" />
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
-        <Title text={data.title} size={titleSize(data.title, { max: 112, min: 66, width: 900, lines: 2 })} />
+        <Title text={data.title} width={960} size={titleSize(data.title, { max: 112, min: 66, width: 900, lines: 2 })} />
         <Ticks brand={brand} />
         {data.description && <p className="b-desc">{data.description}</p>}
         <div className={`b-teams b-teams--${teams.length}`}>
@@ -313,25 +351,25 @@ export function ChallengeBanner(ctx: Ctx<ChallengeData>) {
 
 // ── Community Goal ────────────────────────────────────────────────────────
 export function GoalBanner(ctx: Ctx<GoalData>) {
-  const { data, brand, lang, brandId } = ctx
+  const { data, brand, lang, project } = ctx
   const c = BANNER_COPY[lang]
   const target = Number(String(data.target).replace(/\s/g, '')) || 0
   const progress = Number(String(data.progress).replace(/\s/g, '')) || 0
   const pct = target > 0 && data.progress.trim() ? Math.min(100, (progress / target) * 100) : null
   const seed = data.radar.seed
   const fir = useVatsimDb()?.firById.get(data.radar.fir)
-  const rows = useBoardRows(seed, brand.callsign, brandId === 'rag' ? 2 : 1)
+  const rows = useBoardRows(seed, brand.callsign, networkBit(project) || 3, lang)
   return (
     <Frame brand={brand}>
       {data.scene === 'radar' && <RadarScene fir={data.radar.fir} sectors={data.radar.sectors} traffic={data.radar.traffic} seed={seed} rings={data.radar.rings} accent={brand.accentSoft} callsign={brand.callsign} />}
       {data.scene === 'cockpit' && <CockpitScene seed={seed} accent={brand.accent} value={target} />}
       {data.scene === 'approach' && <ApproachScene icao={data.radar.fir.slice(0, 2) === 'UU' ? 'UUEE' : 'ULLI'} runway="ILS 06R" accent={brand.accentSoft} />}
-      {data.scene === 'board' && <BoardScene rows={rows} big={fmtNum(target).replace(/\s/g, '')} title="COMMUNITY GOAL" />}
+      {data.scene === 'board' && <BoardScene lang={lang} rows={rows} big={fmtNum(target).replace(/\s/g, '')} title={BANNER_COPY[lang].goalBoard} />}
       {data.scene === 'contrails' && <ContrailsScene colors={[brand.accentSoft, brand.second, '#ffffff']} seed={seed} count={data.radar.traffic + 4} />}
       <div className="b-scrim b-scrim--goal" />
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
-        <Title text={data.title} size={titleSize(data.title, { max: 104, min: 64, width: 760, lines: 2 })} />
+        <Title text={data.title} width={820} size={titleSize(data.title, { max: 104, min: 64, width: 760, lines: 2 })} />
         <Ticks brand={brand} />
         <div className="b-goal">
           <span className="b-goal__value" style={{ color: brand.accentSoft, textShadow: `0 0 60px ${brand.routeGlow}` }}>{fmtNum(data.target)}</span>
@@ -396,7 +434,7 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
   const vatsim = data.network.toUpperCase() === 'VATSIM'
   return (
     <Frame brand={brand}>
-      {data.visual === 'map' && <MapLayer view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} labelCity />}
+      {data.visual === 'map' && <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[r.route]} accent={brand.accent} labelCity />}
       {data.visual === 'aircraft' && <AircraftVisual ctx={ctx as Ctx<SlottedData>} />}
       {data.visual === 'photo' && (
         <>
@@ -406,7 +444,7 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
       )}
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} extra={data.network && !vatsim ? <span className="b-badge b-badge--ghost">{data.network}</span> : undefined} />
-        <Title text={data.title} size={titleSize(data.title, { max: 116, min: 68, width: 760, lines: 2.2 })} />
+        <Title text={data.title} width={900} size={titleSize(data.title, { max: 116, min: 68, width: 760, lines: 2.2 })} />
         {data.date && <div className="b-date"><CalendarDays size={26} color={brand.accentSoft} /> {data.date}</div>}
         <LegChips legs={data.legs} brand={brand} />
         <div className="b-waves">
@@ -427,7 +465,7 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
       <SlotTicket data={data} brand={brand} lang={lang} />
       <div className="b-logos">
         {vatsim && <img className="b-netlogo" src="/brand/vatsim-logo.png" alt="VATSIM" />}
-        <BrandLogo brand={ctx.brandId} />
+        <BrandLogo project={ctx.project} />
       </div>
     </Frame>
   )
@@ -436,31 +474,31 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
 // ── Collab Event ──────────────────────────────────────────────────────────
 export function CollabBanner(ctx: Ctx<CollabData>) {
   const { data, lang } = ctx
-  const nws = BRANDS.nws
-  const rag = BRANDS.rag
+  const nws = brandTheme(projectById(data.projects?.[0] ?? 'nws'))
+  const rag = brandTheme(projectById(data.projects?.[1] ?? 'rag'))
   const c = BANNER_COPY[lang]
   const a = useLegRoute(data.vnwsLegs, 'nws', nws.route, nws.routeGlow)
   const b = useLegRoute(data.ragLegs, 'rag', rag.route, rag.routeGlow)
   const brand = ctx.brand
   return (
     <Frame brand={{ ...brand, gradient: `linear-gradient(180deg, ${nws.accent} 0%, ${nws.accent} 50%, ${rag.accent} 50%, ${rag.accent} 100%)` }}>
-      <MapLayer view={data.map} onView={patchMapOf(ctx)} routes={[a.route, b.route]} accent={brand.accent} />
+      <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[a.route, b.route]} accent={brand.accent} />
       <div className="b-content">
         <div className="b-badge-row">
           <span className="b-badge" style={{ background: `linear-gradient(90deg, ${nws.accent}, ${rag.accent})` }}>{c.joint}</span>
           <span className="b-badge-rule" />
         </div>
-        <Title text={data.title} size={titleSize(data.title, { max: 112, min: 66, width: 760, lines: 2.4 })} />
+        <Title text={data.title} width={900} size={titleSize(data.title, { max: 112, min: 66, width: 760, lines: 2.4 })} />
         {data.description && <p className="b-desc">{data.description}</p>}
         <div className="b-collab-routes">
-          <div className="b-collab-route" style={{ ['--c' as string]: nws.route }}><b>vNWS</b><LegChips legs={data.vnwsLegs} brand={nws} /></div>
-          <div className="b-collab-route" style={{ ['--c' as string]: rag.route }}><b>RAG</b><LegChips legs={data.ragLegs} brand={rag} /></div>
+          <div className="b-collab-route" style={{ ['--c' as string]: nws.route }}><b>{nws.short}</b><LegChips legs={data.vnwsLegs} brand={nws} /></div>
+          <div className="b-collab-route" style={{ ['--c' as string]: rag.route }}><b>{rag.short}</b><LegChips legs={data.ragLegs} brand={rag} /></div>
         </div>
         {data.partners && <div className="b-partners"><Users size={22} /> {data.partners}</div>}
       </div>
       <Period text={data.period} brand={brand} />
       <div className="b-collab-rewards">
-        {[{ b: nws, pts: data.vnwsBonus, reg: data.vnwsRegistration, label: 'vNWS' }, { b: rag, pts: data.ragBonus, reg: data.ragRegistration, label: 'RAG' }].map((x) => (
+        {[{ b: nws, pts: data.vnwsBonus, reg: data.vnwsRegistration, label: nws.short }, { b: rag, pts: data.ragBonus, reg: data.ragRegistration, label: rag.short }].map((x) => (
           <div className="b-collab-reward" key={x.label}>
             <span className="b-collab-reward__who" style={{ background: x.b.gradient }}>{x.label}</span>
             <span className="b-collab-reward__pts"><b style={{ color: x.b.accentSoft }}>+{x.pts || 0}</b> {c.bonus}</span>
@@ -469,9 +507,9 @@ export function CollabBanner(ctx: Ctx<CollabData>) {
         ))}
       </div>
       <div className="b-logos b-logos--pair">
-        <BrandLogo brand="nws" style={{ height: 62 }} />
+        <BrandLogo project={nws.project} style={{ height: Math.min(62, nws.project.logoHeight) }} />
         <span className="b-logos__x">×</span>
-        <BrandLogo brand="rag" style={{ height: 54 }} />
+        <BrandLogo project={rag.project} style={{ height: Math.min(56, rag.project.logoHeight) }} />
       </div>
     </Frame>
   )
@@ -485,8 +523,10 @@ export function VatsimBanner(ctx: Ctx<VatsimData> & { logos: { id: string; src: 
   const db = useAirportDb()
   const focus = useAirports(data.airports)
   const feeders = useAirports(data.feeders)
-  const nwsRoute = useLegRoute(data.vnwsLegs, 'nws', BRANDS.nws.route, BRANDS.nws.routeGlow)
-  const ragRoute = useLegRoute(data.ragLegs, 'rag', BRANDS.rag.route, BRANDS.rag.routeGlow)
+  const pa = brandTheme(projectById(data.projects?.[0] ?? 'nws'))
+  const pb = brandTheme(projectById(data.projects?.[1] ?? 'rag'))
+  const nwsRoute = useLegRoute(data.vnwsLegs, 'pa', pa.route, pa.routeGlow)
+  const ragRoute = useLegRoute(data.ragLegs, 'pb', pb.route, pb.routeGlow)
 
   const shapes: MapShape[] = useMemo(() => {
     if (!vatsim) return []
@@ -532,17 +572,17 @@ export function VatsimBanner(ctx: Ctx<VatsimData> & { logos: { id: string; src: 
 
   return (
     <Frame brand={brand}>
-      <MapLayer view={data.map} onView={patchMapOf(ctx)} routes={routes} extra={extra} shapes={shapes} accent={brand.accent} labelCity={data.kind !== 'cross-region'} fitShapes={data.kind === 'online-day'} />
+      <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={routes} extra={extra} shapes={shapes} accent={brand.accent} labelCity={data.kind !== 'cross-region'} fitShapes={data.kind === 'online-day'} />
       <div className="b-content">
         <ModeBadge label={`VATSIM · ${kindLabel}`} brand={brand} />
         {data.kind === 'shuttle' && focus.length >= 2 ? (
           <div className="b-shuttle">
-            <div className="b-shuttle__ap"><span className="b-shuttle__icao">{focus[0].icao}</span><span className="b-shuttle__city">{focus[0].city}</span></div>
+            <div className="b-shuttle__ap"><span className="b-shuttle__icao">{focus[0].icao}</span><span className="b-shuttle__city">{cityName(focus[0], lang)}</span></div>
             <ArrowLeftRight size={84} color={brand.accentSoft} strokeWidth={2.2} />
-            <div className="b-shuttle__ap"><span className="b-shuttle__icao">{focus[1].icao}</span><span className="b-shuttle__city">{focus[1].city}</span></div>
+            <div className="b-shuttle__ap"><span className="b-shuttle__icao">{focus[1].icao}</span><span className="b-shuttle__city">{cityName(focus[1], lang)}</span></div>
           </div>
         ) : null}
-        <Title text={data.title} size={titleSize(data.title, { max: data.kind === 'shuttle' ? 72 : 112, min: 56, width: 780, lines: 2.2 })} />
+        <Title text={data.title} width={900} size={titleSize(data.title, { max: data.kind === 'shuttle' ? 72 : 112, min: 56, width: 780, lines: 2.2 })} />
         {data.kind === 'overload' && focus[0] && <div className="b-date"><Plane size={26} color={brand.accentSoft} /> {c.converge} {focus.map((f) => f.icao).join(' · ')}</div>}
         {data.kind === 'online-day' && data.firs.length > 0 && (
           <div className="b-firs">
@@ -578,7 +618,7 @@ export function VatsimBanner(ctx: Ctx<VatsimData> & { logos: { id: string; src: 
           </div>
         )}
         <img className="b-netlogo" src="/brand/vatsim-logo.png" alt="VATSIM" />
-        <BrandLogo brand={ctx.brandId} />
+        <BrandLogo project={ctx.project} />
       </div>
     </Frame>
   )

@@ -90,7 +90,7 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
           ))}
         </div>
       )}
-      {results && results.length === 0 && !loading && <p className="muted small">{t.noPhotos}{error ? ' (offline?)' : ''}</p>}
+      {results && results.length === 0 && !loading && <p className="muted small">{t.noPhotos}{error ? ` (${t.offline})` : ''}</p>}
       {(photo.credit || photo.title) && selected && <p className="photo-picker__credit">{photo.title}{photo.credit && ` — ${photo.credit}`}</p>}
 
       {framing && selected && (

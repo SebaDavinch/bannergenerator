@@ -91,7 +91,31 @@ export function autoProjectionKind(target: FitTarget, requested: MapView['projec
   return spanDeg(target.points) > 140 ? 'natural' : 'mercator'
 }
 
+/** Serializable projection description (rebuilt exactly inside the relief worker). */
+export interface ProjectionSpec {
+  kind: MapView['projection']
+  rotate: [number, number, number]
+  parallels?: [number, number]
+  scale: number
+  translate: [number, number]
+}
+
+export function projectionFromSpec(spec: ProjectionSpec): GeoProjection {
+  let p: GeoProjection
+  if (spec.kind === 'conic') p = geoConicConformal().parallels(spec.parallels ?? [20, 50])
+  else if (spec.kind === 'natural') p = geoNaturalEarth1()
+  else if (spec.kind === 'globe') p = geoOrthographic().clipAngle(90)
+  else p = geoMercator()
+  return p.rotate(spec.rotate).scale(spec.scale).translate(spec.translate)
+}
+
+export function specOf(projection: GeoProjection, kind: MapView['projection']): ProjectionSpec {
+  const parallels = kind === 'conic' ? ((projection as unknown as { parallels: () => [number, number] }).parallels() as [number, number]) : undefined
+  return { kind, rotate: projection.rotate() as [number, number, number], parallels, scale: projection.scale(), translate: projection.translate() as [number, number] }
+}
+
 export interface Fitted {
+  spec: ProjectionSpec
   projection: GeoProjection
   /** Scale/translate of the pure auto-fit (zoom 1, no offset). */
   baseScale: number
@@ -109,8 +133,9 @@ export function fitProjection(view: MapView, target: FitTarget): Fitted {
   const baseScale = projection.scale()
   const baseTranslate = projection.translate() as [number, number]
   applyView(projection, { baseScale, baseTranslate, box }, view)
+  const spec = specOf(projection, kind)
   if (kind !== 'globe') projection.clipExtent([[-60, -60], [STAGE_W + 60, STAGE_H + 60]])
-  return { projection, baseScale, baseTranslate, box }
+  return { spec, projection, baseScale, baseTranslate, box }
 }
 
 /** translate = c + (t0 − c)·zoom + d, so zoom 1 / d 0 is the exact auto-fit. */

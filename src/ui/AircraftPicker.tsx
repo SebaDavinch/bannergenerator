@@ -3,6 +3,7 @@ import { Plane } from 'lucide-react'
 import { fleetTypes, searchFleet, useFleet } from '../data/fleet'
 import { typeName } from '../photos/aircraft'
 import { useStore } from '../state/store'
+import { projectById } from '../data/projects'
 import type { AircraftRef } from '../types'
 import { UI } from '../i18n'
 import { Combobox } from './Combobox'
@@ -14,9 +15,10 @@ export function AircraftPicker({ value, onChange }: { value: AircraftRef; onChan
   const t = UI[state.locale]
   const fleet = useFleet()
   const [query, setQuery] = useState<string | null>(null)
-  const items = useMemo(() => (fleet ? searchFleet(fleet, query ?? '', state.brand, 12) : []), [fleet, query, state.brand])
-  const types = useMemo(() => (fleet ? fleetTypes(fleet, state.brand) : []), [fleet, state.brand])
-  const va = state.brand === 'rag' ? 'RAG' : 'vNWS'
+  const project = projectById(state.brand)
+  const items = useMemo(() => (fleet ? searchFleet(fleet, query ?? '', project, 12) : []), [fleet, query, project])
+  const types = useMemo(() => (fleet ? fleetTypes(fleet, project) : []), [fleet, project])
+  const va = project.short
 
   return (
     <div className="stack">
@@ -32,7 +34,7 @@ export function AircraftPicker({ value, onChange }: { value: AircraftRef; onChan
             <div className="ap-row">
               <span className="ap-row__icao">{a.reg}</span>
               <span className="ap-row__iata">{a.type}</span>
-              <span className="ap-row__name"><span className="ap-row__title">{a.model}</span><span className="ap-row__city">{a.fleet}{a.pax ? ` · ${a.pax} pax` : ''}</span></span>
+              <span className="ap-row__name"><span className="ap-row__title">{a.model}</span><span className="ap-row__city">{a.fleet}{a.pax ? ` · ${a.pax} ${t.pax}` : ''}</span></span>
             </div>
           )}
           onPick={(a) => { setQuery(null); onChange({ reg: a.reg, type: a.type, model: a.model || typeName(a.type), va: state.brand }) }}

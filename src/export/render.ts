@@ -1,5 +1,6 @@
 import { toCanvas } from 'html-to-image'
 import type { StudioState } from '../types'
+import { reliefIdle } from '../map/relief'
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
 
@@ -24,6 +25,9 @@ async function settle(node: HTMLElement) {
 }
 
 export async function renderBanner(node: HTMLElement, width: number) {
+  // Wait for the full-resolution relief render before capturing.
+  await new Promise((r) => setTimeout(r, 120))
+  await reliefIdle()
   await settle(node)
   return toCanvas(node, {
     width: 1920, height: 1080, canvasWidth: width, canvasHeight: Math.round((width * 9) / 16), pixelRatio: 1,

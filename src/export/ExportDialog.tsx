@@ -3,8 +3,9 @@ import { Check, Clipboard, Download, Loader2, TriangleAlert, X } from 'lucide-re
 import { useStore } from '../state/store'
 import type { ModeId } from '../types'
 import { MODES, UI } from '../i18n'
-import { Button, Field, Segmented, Slider, TextInput } from '../ui/controls'
+import { Button, Field, Segmented, Slider, Switch, TextInput } from '../ui/controls'
 import { pushHistory } from './history'
+import { projectById } from '../data/projects'
 import { bannerTitle, defaultName, renderBanner } from './render'
 
 type Format = 'png' | 'jpeg' | 'webp'
@@ -26,6 +27,7 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
   const [result, setResult] = useState<{ blob: Blob; url: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
+  const [keep, setKeep] = useState(true)
   const dialog = useRef<HTMLDivElement>(null)
   const dims = SIZES.find((s) => s.id === size)!
 
@@ -43,6 +45,9 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
 
   useEffect(() => () => { if (result) URL.revokeObjectURL(result.url) }, [result])
 
+  const ext = format === 'jpeg' ? 'jpg' : format
+  const thumbRef = useRef('')
+
   const render = async () => {
     const node = stageRef.current
     if (!node) return null
@@ -53,12 +58,11 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
       const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), `image/${format}`, format === 'png' ? undefined : quality))
       const url = URL.createObjectURL(blob)
       setResult({ blob, url })
-      // Small JPEG thumbnail + full editor snapshot for the history drawer.
       const thumb = document.createElement('canvas')
-      thumb.width = 480
-      thumb.height = 270
-      thumb.getContext('2d')!.drawImage(canvas, 0, 0, 480, 270)
-      pushHistory({ mode: state.mode as ModeId, brand: state.brand, title: bannerTitle(state), thumb: thumb.toDataURL('image/jpeg', 0.75), data: state.data[state.mode] })
+      thumb.width = 960
+      thumb.height = 540
+      thumb.getContext('2d')!.drawImage(canvas, 0, 0, 960, 540)
+      thumbRef.current = thumb.toDataURL('image/jpeg', 0.8)
       return { blob, url }
     } catch (e) {
       setError(String((e as Error)?.message || e))
@@ -68,13 +72,23 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
     }
   }
 
+  /** Export snapshot: thumbnail, full file and the editor data, so it can be re-downloaded or reopened. */
+  const remember = (blob: Blob) => {
+    if (!keep || !thumbRef.current) return
+    void pushHistory({
+      mode: state.mode as ModeId, brand: state.brand, bannerLang: state.bannerLang, title: bannerTitle(state), thumb: thumbRef.current,
+      width: dims.w, height: dims.h, format: ext, fileName: `${name || 'banner'}.${ext}`, size: blob.size, data: state.data[state.mode],
+    }, blob)
+  }
+
   const download = async () => {
     const r = result ?? (await render())
     if (!r) return
     const a = document.createElement('a')
     a.href = r.url
-    a.download = `${name || 'banner'}.${format === 'jpeg' ? 'jpg' : format}`
+    a.download = `${name || 'banner'}.${ext}`
     a.click()
+    remember(r.blob)
   }
 
   const copy = async () => {
@@ -86,6 +100,14 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
       const canvas = await renderBanner(node, dims.w)
       const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/png'))
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      if (!thumbRef.current) {
+        const thumb = document.createElement('canvas')
+        thumb.width = 960
+        thumb.height = 540
+        thumb.getContext('2d')!.drawImage(canvas, 0, 0, 960, 540)
+        thumbRef.current = thumb.toDataURL('image/jpeg', 0.8)
+      }
+      remember(blob)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1800)
     } catch (e) {
@@ -104,7 +126,7 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
         <header className="modal__head">
           <div>
             <h2>{t.exportTitle}</h2>
-            <p className="muted small">{mode?.label[state.locale]} · {state.brand === 'nws' ? 'vNWS' : 'RAG'}</p>
+            <p className="muted small">{mode?.label[state.locale]} · {projectById(state.brand).short}</p>
           </div>
           <Button variant="ghost" icon={X} onClick={onClose} aria-label={t.close} />
         </header>
@@ -131,6 +153,7 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
             <Field label={t.fileName}>
               <div className="filename"><TextInput mono value={name} onValue={setName} /><span>.{format === 'jpeg' ? 'jpg' : format}</span></div>
             </Field>
+            <Switch checked={keep} onChange={setKeep} label={t.saveToHistory} />
             {remoteImages && <p className="warn small"><TriangleAlert size={14} /> {t.exportWarnRemote}</p>}
             {error && <p className="warn small"><TriangleAlert size={14} /> {error}</p>}
           </div>

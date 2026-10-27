@@ -6,3 +6,8 @@ export function titleSize(text: string, opts: { max?: number; min?: number; widt
   const fit = (width * lines) / (len * 0.52)
   return Math.round(Math.max(min, Math.min(max, fit)))
 }
+
+/** Reward line size that keeps it on one line left of the logo (~1150px). */
+export function rewardSize(text: string, width = 1150, max = 60) {
+  return Math.round(Math.max(40, Math.min(max, width / (text.length * 0.55))))
+}

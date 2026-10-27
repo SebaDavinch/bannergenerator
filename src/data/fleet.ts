@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { Brand } from '../types'
+import type { Project } from './projects'
 
 export interface FleetAircraft {
-  va: 'vnws' | 'rag'
+  /** vAMSYS fleet source key (vnws, rag, …). */
+  va: string
   reg: string
   type: string
   model: string
@@ -53,11 +54,9 @@ export function useFleet() {
   return fleet
 }
 
-export const brandSource = (brand: Brand) => (brand === 'rag' ? 'rag' : 'vnws') as FleetAircraft['va']
-
-export function searchFleet(fleet: FleetAircraft[], query: string, brand: Brand, limit = 10) {
+export function searchFleet(fleet: FleetAircraft[], query: string, project: Project, limit = 10) {
   const q = query.trim().toUpperCase().replace(/\s+/g, '')
-  const src = brandSource(brand)
+  const src = project.fleet
   const own = fleet.filter((a) => a.va === src)
   if (!q) return own.slice(0, limit)
   const norm = (s: string) => s.toUpperCase().replace(/[\s-]/g, '')
@@ -80,8 +79,8 @@ export function searchFleet(fleet: FleetAircraft[], query: string, brand: Brand,
 }
 
 /** One entry per fleet type for the "pick a type" chips. */
-export function fleetTypes(fleet: FleetAircraft[], brand: Brand) {
-  const src = brandSource(brand)
+export function fleetTypes(fleet: FleetAircraft[], project: Project) {
+  const src = project.fleet
   const map = new Map<string, { type: string; model: string; count: number }>()
   for (const a of fleet) {
     if (a.va !== src) continue

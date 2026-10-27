@@ -2,7 +2,8 @@ import { forwardRef } from 'react'
 import { useLogos } from '../lib/logos'
 import { useStore } from '../state/store'
 import type { ModeDataMap, ModeId } from '../types'
-import { BRANDS } from './brand'
+import { projectById, useProjects } from '../data/projects'
+import { brandTheme } from './brand'
 import { ChallengeBanner, CollabBanner, FocusBanner, GoalBanner, RosterBanner, SlottedBanner, TourBanner, VatsimBanner } from './templates'
 
 /** The 1920×1080 banner itself. Rendered once in the preview (scaled) and exported as-is. */
@@ -10,8 +11,10 @@ export const BannerStage = forwardRef<HTMLDivElement, { editable?: boolean }>(fu
   const { state, update } = useStore()
   const { logos } = useLogos()
   const mode = state.mode
-  const brand = BRANDS[state.brand]
-  const common = { brand, brandId: state.brand, lang: state.bannerLang, mode }
+  useProjects()
+  const project = projectById(state.brand)
+  const brand = brandTheme(project)
+  const common = { brand, project, lang: state.bannerLang, mode }
   const patch = <M extends ModeId>(m: M) => (editable ? (p: Partial<ModeDataMap[M]>) => update(m, p) : undefined)
 
   let body: React.ReactNode = null

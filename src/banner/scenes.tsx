@@ -1,6 +1,8 @@
 import { memo, useMemo } from 'react'
 import { Airspeed, Altimeter, AttitudeIndicator, HeadingIndicator, TurnCoordinator, VerticalSpeed } from 'flight-indicators'
 import { rng } from '../lib/rng'
+import { BANNER_COPY } from '../i18n'
+import type { Locale } from '../types'
 
 /*
  * Abstract aviation backdrops for Community Goal / Challenge. Everything is
@@ -117,7 +119,8 @@ export const RunwayScene = memo(function RunwayScene({ lanes, seed }: { lanes: L
 })
 
 /** Stacked holding patterns over a fix — one racetrack per team. */
-export const HoldingScene = memo(function HoldingScene({ tracks, seed, fix = 'NORDW' }: { tracks: Lane[]; seed: number; fix?: string }) {
+export const HoldingScene = memo(function HoldingScene({ tracks, seed, fix = 'NORDW', lang = 'en' }: { tracks: Lane[]; seed: number; fix?: string; lang?: Locale }) {
+  const c = BANNER_COPY[lang]
   const C = { x: 1330, y: 540 }
   const r = rng(seed)
   const course = 250 + Math.round(r() * 40)
@@ -171,7 +174,7 @@ export const HoldingScene = memo(function HoldingScene({ tracks, seed, fix = 'NO
         </g>
         <path d="M0,-26 L23,14 L-23,14 Z" fill="#05080e" stroke="#fff" strokeWidth={3} />
         <text x={36} y={-24} fill="#fff" fontFamily="JetBrains Mono" fontWeight={700} fontSize={30}>{fix}</text>
-        <text x={36} y={8} fill="rgba(200,215,240,.6)" fontFamily="JetBrains Mono" fontSize={20}>HOLD {String(course).padStart(3, '0')}° · 1 MIN</text>
+        <text x={36} y={8} fill="rgba(200,215,240,.6)" fontFamily="JetBrains Mono" fontSize={20}>{c.hold} {String(course).padStart(3, '0')}° · 1 {c.minute}</text>
         {tracks.map((t, i) => (
           <g key={i} transform={`translate(36 ${40 + i * 40})`}>
             <rect width={112} height={32} rx={6} fill="rgba(5,8,14,.85)" stroke={t.color} strokeWidth={2} />
@@ -208,7 +211,8 @@ function FlapText({ text, x, y, cell = 38, color = '#f5f2e8', len }: { text: str
 export interface BoardRow { time: string; flight: string; dest: string; status: string; color?: string }
 
 /** Split-flap departures board. */
-export const BoardScene = memo(function BoardScene({ rows, title = 'DEPARTURES', big, compact }: { rows: BoardRow[]; title?: string; big?: string; compact?: boolean }) {
+export const BoardScene = memo(function BoardScene({ rows, title, big, compact, lang = 'en' }: { rows: BoardRow[]; title?: string; big?: string; compact?: boolean; lang?: Locale }) {
+  const c = BANNER_COPY[lang]
   // Compact drops the TIME column so the board fits right of the team cards.
   const x0 = compact ? 1190 : 930
   const cell = 24
@@ -231,8 +235,8 @@ export const BoardScene = memo(function BoardScene({ rows, title = 'DEPARTURES',
       <rect width={W} height={H} fill="url(#bd-light)" />
       <rect x={x0 - 30} y={big ? 120 : 170} width={W - x0 - 60} height={big ? 800 : 700} rx={18} fill="#0a0c10" stroke="rgba(255,255,255,.06)" strokeWidth={2} />
       {big && <FlapText text={big} x={x0} y={150} cell={Math.min(110, 820 / Math.max(4, big.length) - 6)} len={Math.min(7, big.length)} color="#ffd36b" />}
-      <text x={x0} y={top - 38} fill="#ffd36b" fontFamily="Oswald" fontWeight={600} fontSize={28} letterSpacing="0.3em">{title}</text>
-      {['TIME', 'FLIGHT', 'DESTINATION', 'STATUS'].map((h, i) => {
+      <text x={x0} y={top - 38} fill="#ffd36b" fontFamily="Oswald" fontWeight={600} fontSize={28} letterSpacing="0.3em">{title ?? c.departures}</text>
+      {[c.colTime, c.colFlight, c.colDest, c.colStatus].map((h, i) => {
         if (compact && i === 0) return null
         const t0 = compact ? -1 : 0
         const off = [0, cols.time + 1 + t0, cols.time + cols.flight + 2 + t0, cols.time + cols.flight + cols.dest + 3 + t0][i]

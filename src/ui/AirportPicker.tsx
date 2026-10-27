@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { searchAirports, useAirportDb, type AirportRecord } from '../data/airports'
 import { useStore } from '../state/store'
+import { networkBit, projectById } from '../data/projects'
 import { Combobox } from './Combobox'
 import { Flag } from './controls'
 
@@ -36,7 +37,7 @@ export function AirportPicker({ value, onPick, placeholder, compact, autoFocus }
   const { state } = useStore()
   const [query, setQuery] = useState<string | null>(null)
   const text = query ?? value
-  const items = useMemo(() => (db && query ? searchAirports(db, query, { brand: state.brand, limit: compact ? 8 : 12 }) : []), [db, query, state.brand, compact])
+  const items = useMemo(() => (db && query ? searchAirports(db, query, { networkBit: networkBit(projectById(state.brand)), limit: compact ? 8 : 12 }) : []), [db, query, state.brand, compact])
   const current = db?.byIcao.get(value)
 
   return (

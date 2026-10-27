@@ -1,4 +1,5 @@
-export type Brand = 'nws' | 'rag'
+/** vAMSYS project id (see data/projects.ts). */
+export type Brand = string
 export type Locale = 'ru' | 'en'
 
 export type ModeId =
@@ -19,6 +20,7 @@ export interface AirportRef {
   iata: string
   name: string
   city: string
+  cityRu?: string
   country: string
   lat: number
   lon: number
@@ -54,7 +56,7 @@ export interface PhotoState {
 }
 
 export type MapProjectionKind = 'mercator' | 'conic' | 'natural' | 'globe'
-export type MapTheme = 'night' | 'dusk' | 'steel'
+export type MapTheme = 'night' | 'dusk' | 'steel' | 'terrain' | 'atlas' | 'polar' | 'brand'
 
 export interface MapView {
   projection: MapProjectionKind
@@ -72,6 +74,18 @@ export interface MapView {
   guard: number
   /** Where the route is fitted: the free area right of the text, or the full banner. */
   frame: 'content' | 'full'
+  /** Shaded relief from elevation tiles. */
+  relief: boolean
+  /** Relief exaggeration multiplier (0.3..3). */
+  reliefStrength: number
+  rivers: boolean
+  cities: boolean
+  /** Number stops along the route (1, 2, 3…). */
+  numbers: boolean
+  /** Airport chip content. */
+  labelMode: 'icao' | 'icao-city' | 'city'
+  routeStyle: 'solid' | 'dashed' | 'dotted'
+  routeWidth: number
 }
 
 export interface AircraftRef {
@@ -98,6 +112,8 @@ export interface FocusData extends Common {
 }
 
 export interface TourData extends Common {
+  /** chips = leg chips + stats; itinerary = numbered stop list synced with map numbers. */
+  layout: 'chips' | 'itinerary'
   title: string
   description: string
   legs: Leg[]
@@ -171,6 +187,8 @@ export interface SlottedData extends Common {
 }
 
 export interface CollabData {
+  /** Host and partner project ids. */
+  projects: [string, string]
   title: string
   description: string
   period: string
@@ -202,6 +220,8 @@ export interface VatsimData extends Common {
   positions: string
   hosts: string
   logos: string[]
+  /** Cross-region: the two projects whose legs are drawn. */
+  projects: [string, string]
   vnwsLegs: Leg[]
   ragLegs: Leg[]
   map: MapView

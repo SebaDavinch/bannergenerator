@@ -3,7 +3,7 @@ import { greatCircleNm, useAirportDb, type AirportRecord } from '../data/airport
 import type { Leg } from '../types'
 import type { MapRoute, MapStop } from './RouteMap'
 
-export const toStop = (a: AirportRecord, role?: MapStop['role']): MapStop => ({ icao: a.icao, lon: a.lon, lat: a.lat, country: a.country, city: a.city, role })
+export const toStop = (a: AirportRecord, role?: MapStop['role']): MapStop => ({ icao: a.icao, lon: a.lon, lat: a.lat, country: a.country, city: a.city, cityRu: a.cityRu, role })
 
 /** Legs → map route + summary stats; unknown ICAOs are skipped. */
 export function useLegRoute(legs: Leg[], id: string, color: string, glow: string) {
@@ -24,7 +24,8 @@ export function useLegRoute(legs: Leg[], id: string, color: string, glow: string
     }
     if (pairs[0]) pairs[0][0] = { ...pairs[0][0], role: 'start' }
     const route: MapRoute = { id, stops: [], pairs, color, glow }
-    return { route, nm: Math.round(nm), airports: airports.size, legs: legs.filter((l) => l.from && l.to).length, db }
+    const countries = new Set([...airports].map((i) => db?.byIcao.get(i)?.country).filter(Boolean))
+    return { route, nm: Math.round(nm), airports: airports.size, countries: countries.size, legs: legs.filter((l) => l.from && l.to).length, db }
   }, [db, legs, id, color, glow])
 }
 

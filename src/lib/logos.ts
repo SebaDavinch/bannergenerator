@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
+import { allProjects, useProjects } from '../data/projects'
 
 export interface LogoItem { id: string; name: string; src: string; builtIn?: boolean }
 
 const KEY = 'banner-studio:logos'
-const BUILT_IN: LogoItem[] = [
-  { id: 'vatsim', name: 'VATSIM', src: '/brand/vatsim-logo.png', builtIn: true },
-  { id: 'nws', name: 'Nordwind Virtual', src: '/brand/nordwind-logo.png', builtIn: true },
-  { id: 'rag', name: 'Russian Airways Group', src: '/brand/rag-logo.png', builtIn: true },
-]
+const BUILT_IN: LogoItem[] = [{ id: 'vatsim', name: 'VATSIM', src: '/brand/vatsim-logo.png', builtIn: true }]
+
+/** Every vAMSYS project that has artwork shows up in the library. */
+const projectLogos = (): LogoItem[] => allProjects().filter((p) => p.logo).map((p) => ({ id: p.id, name: p.name, src: p.logo, builtIn: true }))
 
 const listeners = new Set<() => void>()
 
@@ -22,6 +22,7 @@ function read(): LogoItem[] {
  * listed in /public/logos/index.json are picked up automatically too.
  */
 export function useLogos() {
+  useProjects()
   const [custom, setCustom] = useState<LogoItem[]>(read)
   const [shipped, setShipped] = useState<LogoItem[]>([])
 
@@ -44,5 +45,5 @@ export function useLogos() {
   const add = useCallback((item: Omit<LogoItem, 'id'>) => save([...read(), { ...item, id: `u${Date.now().toString(36)}` }]), [save])
   const remove = useCallback((id: string) => save(read().filter((l) => l.id !== id)), [save])
 
-  return { logos: [...BUILT_IN, ...shipped, ...custom], add, remove }
+  return { logos: [...BUILT_IN, ...projectLogos(), ...shipped, ...custom], add, remove }
 }

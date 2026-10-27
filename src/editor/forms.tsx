@@ -4,6 +4,9 @@ import {
 } from 'lucide-react'
 import { toRef, useAirportDb } from '../data/airports'
 import { useVatsimDb } from '../data/vatsim'
+import { projectById, useProjects } from '../data/projects'
+import { MapOptions } from './MapOptions'
+import type { MapView } from '../types'
 import { searchAircraftPhotos } from '../photos/aircraft'
 import { searchLandmarks, searchMood } from '../photos/landmarks'
 import { uid } from '../state/defaults'
@@ -18,6 +21,27 @@ import { PhotoPicker } from '../ui/PhotoPicker'
 import { AirportList, DivisionPicker, FirPicker, LogoPicker } from './pickers'
 
 const useT = () => UI[useStore().state.locale]
+
+function MapCard({ view, onChange }: { view: MapView; onChange: (v: MapView) => void }) {
+  const t = useT()
+  return (
+    <Card title={t.mapCard} icon={MapPinned} hint={t.mapHint}>
+      <MapOptions view={view} set={(p) => onChange({ ...view, ...p })} />
+    </Card>
+  )
+}
+
+function ProjectPair({ value, onChange }: { value: [string, string]; onChange: (v: [string, string]) => void }) {
+  const t = useT()
+  const { visible } = useProjects()
+  const opts = visible.map((p) => ({ value: p.id, label: `${p.short} — ${p.name}` }))
+  return (
+    <Grid>
+      <Field label={t.partnerA}><Select value={value[0]} onChange={(v) => onChange([v, value[1]])} options={opts} /></Field>
+      <Field label={t.partnerB}><Select value={value[1]} onChange={(v) => onChange([value[0], v])} options={opts} /></Field>
+    </Grid>
+  )
+}
 
 function RewardCard({ value, onChange, t, withPeriod = true }: {
   value: { bonusPoints: string; registrationRequired: boolean; period: string }
@@ -78,7 +102,11 @@ export function TourForm() {
   return (
     <>
       <Card title={t.basics} icon={Type}><TitleFields title={d.title} description={d.description} onChange={set} t={t} /></Card>
-      <Card title={t.route} icon={Route}><LegsEditor legs={d.legs} onChange={(legs) => set({ legs })} /></Card>
+      <Card title={t.route} icon={Route} actions={
+        <Segmented size="sm" value={d.layout} onChange={(layout) => set({ layout, map: { ...d.map, numbers: layout === 'itinerary' || d.map.numbers } })}
+          options={[{ value: 'chips', label: t.layoutChips }, { value: 'itinerary', label: t.layoutItinerary }]} />
+      }><LegsEditor legs={d.legs} onChange={(legs) => set({ legs })} /></Card>
+      <MapCard view={d.map} onChange={(map) => set({ map })} />
       <RewardCard value={d} onChange={set} t={t} />
     </>
   )
@@ -89,7 +117,7 @@ export function RosterForm({ mode }: { mode: 'roster' | 'curated-roster' }) {
   const t = useT()
   const { state } = useStore()
   const [d, set] = useMode(mode)
-  const search = useCallback((signal: AbortSignal) => searchAircraftPhotos({ reg: d.aircraft.reg, type: d.aircraft.type, brand: state.brand }, signal), [d.aircraft.reg, d.aircraft.type, state.brand])
+  const search = useCallback((signal: AbortSignal) => searchAircraftPhotos({ reg: d.aircraft.reg, type: d.aircraft.type, project: projectById(state.brand) }, signal), [d.aircraft.reg, d.aircraft.type, state.brand])
   return (
     <>
       <Card title={t.basics} icon={Type}><TitleFields title={d.title} description={d.description} onChange={set} t={t} /></Card>
@@ -104,7 +132,7 @@ export function RosterForm({ mode }: { mode: 'roster' | 'curated-roster' }) {
             <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={search}
               searchKey={d.aircraft.reg || d.aircraft.type ? `${state.brand}|${d.aircraft.reg}|${d.aircraft.type}` : ''} />
           </>
-        ) : <p className="muted small">{t.mapHint}</p>}
+        ) : <MapOptions view={d.map} set={(p) => set({ map: { ...d.map, ...p } })} />}
       </Card>
       <RewardCard value={d} onChange={set} t={t} />
     </>
@@ -139,7 +167,7 @@ export function ChallengeForm() {
             <Button variant="ghost" size="sm" icon={X} disabled={d.teams.length <= 2} onClick={() => set({ teams: d.teams.filter((x) => x.id !== team.id) })} aria-label="remove" />
           </div>
         ))}
-        {d.teams.length < 4 && <Button size="sm" icon={Plus} onClick={() => set({ teams: [...d.teams, { id: uid(), name: `Team ${d.teams.length + 1}`, countType: d.teams[0]?.countType ?? 'flights', target: d.teams[0]?.target ?? '' }] })}>{t.addTeam}</Button>}
+        {d.teams.length < 4 && <Button size="sm" icon={Plus} onClick={() => set({ teams: [...d.teams, { id: uid(), name: `${t.teamDefault} ${d.teams.length + 1}`, countType: d.teams[0]?.countType ?? 'flights', target: d.teams[0]?.target ?? '' }] })}>{t.addTeam}</Button>}
       </Card>
       <Card title={t.visual} icon={Clapperboard}>
         <Segmented value={d.scene} onChange={(v) => set({ scene: v })} options={CHALLENGE_SCENES.map((s) => ({ value: s.value, label: s[state.locale] }))} />
@@ -186,7 +214,7 @@ export function GoalForm() {
         {d.scene === 'radar' && (
           <>
             <Field label={t.sector}><FirPicker multi={false} value={[d.radar.fir]} onChange={(v) => radar({ fir: v[v.length - 1] ?? d.radar.fir })} /></Field>
-            <p className="muted small"><Radar size={12} /> {d.radar.fir} · {vatsim?.firById.get(d.radar.fir)?.name} · {sectorCount} sectors</p>
+            <p className="muted small"><Radar size={12} /> {d.radar.fir} · {vatsim?.firById.get(d.radar.fir)?.name} · {sectorCount} {t.sectorsCount}</p>
             <Grid>
               <Switch checked={d.radar.sectors} onChange={(v) => radar({ sectors: v })} label={t.sectorLines} />
               <Switch checked={d.radar.rings} onChange={(v) => radar({ rings: v })} label={t.rangeRings} />
@@ -209,7 +237,7 @@ export function SlottedForm() {
   const firstTo = d.legs[0]?.to
   const db = useAirportDb()
   const dest = firstTo ? db?.byIcao.get(firstTo) : undefined
-  const aircraftSearch = useCallback((signal: AbortSignal) => searchAircraftPhotos({ reg: d.aircraft.reg, type: d.aircraft.type, brand: state.brand }, signal), [d.aircraft.reg, d.aircraft.type, state.brand])
+  const aircraftSearch = useCallback((signal: AbortSignal) => searchAircraftPhotos({ reg: d.aircraft.reg, type: d.aircraft.type, project: projectById(state.brand) }, signal), [d.aircraft.reg, d.aircraft.type, state.brand])
   const citySearch = useCallback((signal: AbortSignal) => searchLandmarks(dest ? toRef(dest) : null, dest?.city ?? '', signal).then((r) => r.photos), [dest])
   return (
     <>
@@ -217,11 +245,16 @@ export function SlottedForm() {
         <Field label={t.title}><TextInput value={d.title} onValue={(v) => set({ title: v })} /></Field>
         <Grid>
           <Field label={t.network}><Select value={d.network} onChange={(v) => set({ network: v })} options={['VATSIM', 'IVAO', 'POSCON', 'PilotEdge', 'Offline'].map((v) => ({ value: v, label: v }))} /></Field>
-          <Field label={t.date}><TextInput value={d.date} placeholder="SAT 14 NOV · 17:00Z" onValue={(v) => set({ date: v })} /></Field>
+          <Field label={t.date}><TextInput value={d.date} placeholder={t.datePh} onValue={(v) => set({ date: v })} /></Field>
         </Grid>
       </Card>
       <Card title={t.booking} icon={Ticket}>
-        <Field label={t.bookingUrl}><TextInput mono value={d.bookingUrl} placeholder="https://vamsys.io/bookings/nws" onValue={(v) => set({ bookingUrl: v })} /></Field>
+        <Field label={t.bookingUrl}>
+          <div className="filename">
+            <TextInput mono value={d.bookingUrl} placeholder={`https://vamsys.io/bookings/${projectById(state.brand).vamsys || 'nws'}`} onValue={(v) => set({ bookingUrl: v })} />
+            {projectById(state.brand).vamsys && <Button size="sm" variant="ghost" onClick={() => set({ bookingUrl: `https://vamsys.io/bookings/${projectById(state.brand).vamsys}` })}>{projectById(state.brand).short}</Button>}
+          </div>
+        </Field>
         <Switch checked={d.showQr} onChange={(v) => set({ showQr: v })} label={t.qr} />
       </Card>
       <Card title={t.waves} icon={CalendarClock}>
@@ -233,7 +266,7 @@ export function SlottedForm() {
             <Button variant="ghost" size="sm" icon={X} onClick={() => set({ waves: d.waves.filter((x) => x.id !== w.id) })} aria-label="remove" />
           </div>
         ))}
-        {d.waves.length < 4 && <Button size="sm" icon={Plus} onClick={() => set({ waves: [...d.waves, { id: uid(), label: `Wave ${d.waves.length + 1}`, openTime: '', condition: '' }] })}>{t.addWave}</Button>}
+        {d.waves.length < 4 && <Button size="sm" icon={Plus} onClick={() => set({ waves: [...d.waves, { id: uid(), label: `${t.waveDefault} ${d.waves.length + 1}`, openTime: '', condition: '' }] })}>{t.addWave}</Button>}
       </Card>
       <Card title={t.route} icon={Route}><LegsEditor legs={d.legs} onChange={(legs) => set({ legs })} /></Card>
       <Card title={t.visual} icon={Images} actions={
@@ -247,7 +280,7 @@ export function SlottedForm() {
           </>
         )}
         {d.visual === 'photo' && <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={citySearch} searchKey={`city|${dest?.icao ?? ''}`} />}
-        {d.visual === 'map' && <p className="muted small">{t.mapHint}</p>}
+        {d.visual === 'map' && <MapOptions view={d.map} set={(p) => set({ map: { ...d.map, ...p } })} />}
       </Card>
       <RewardCard value={d} onChange={set} t={t} />
     </>
@@ -258,8 +291,11 @@ export function SlottedForm() {
 export function CollabForm() {
   const t = useT()
   const [d, set] = useMode('event')
+  const a = projectById(d.projects?.[0] ?? 'nws')
+  const b = projectById(d.projects?.[1] ?? 'rag')
   return (
     <>
+      <Card title={t.projects} icon={Building2}><ProjectPair value={d.projects ?? ['nws', 'rag']} onChange={(projects) => set({ projects })} /></Card>
       <Card title={t.basics} icon={Type}>
         <TitleFields title={d.title} description={d.description} onChange={set} t={t} />
         <Grid>
@@ -267,20 +303,21 @@ export function CollabForm() {
           <Field label={t.period}><TextInput value={d.period} placeholder={t.periodPh} onValue={(v) => set({ period: v.toUpperCase() })} /></Field>
         </Grid>
       </Card>
-      <Card title={t.vnwsLegs} icon={Route}>
-        <LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent="#FF4E57" />
+      <Card title={`${t.legs} ${a.short}`} icon={Route}>
+        <LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={a.colors.route} />
         <Grid>
-          <Field label={t.vnwsBonus}><TextInput mono value={d.vnwsBonus} onValue={(v) => set({ vnwsBonus: v })} /></Field>
-          <Switch checked={d.vnwsRegistration} onChange={(v) => set({ vnwsRegistration: v })} label={t.vnwsReg} />
+          <Field label={`${t.bonus} ${a.short}`}><TextInput mono value={d.vnwsBonus} onValue={(v) => set({ vnwsBonus: v })} /></Field>
+          <Switch checked={d.vnwsRegistration} onChange={(v) => set({ vnwsRegistration: v })} label={`${t.registration} · ${a.short}`} />
         </Grid>
       </Card>
-      <Card title={t.ragLegs} icon={Route}>
-        <LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent="#5EE2F2" />
+      <Card title={`${t.legs} ${b.short}`} icon={Route}>
+        <LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={b.colors.route} />
         <Grid>
-          <Field label={t.ragBonus}><TextInput mono value={d.ragBonus} onValue={(v) => set({ ragBonus: v })} /></Field>
-          <Switch checked={d.ragRegistration} onChange={(v) => set({ ragRegistration: v })} label={t.ragReg} />
+          <Field label={`${t.bonus} ${b.short}`}><TextInput mono value={d.ragBonus} onValue={(v) => set({ ragBonus: v })} /></Field>
+          <Switch checked={d.ragRegistration} onChange={(v) => set({ ragRegistration: v })} label={`${t.registration} · ${b.short}`} />
         </Grid>
       </Card>
+      <MapCard view={d.map} onChange={(map) => set({ map })} />
     </>
   )
 }
@@ -314,7 +351,7 @@ export function VatsimForm() {
       <Card title={t.basics} icon={Type}>
         <TitleFields title={d.title} description={d.description} onChange={set} t={t} />
         <Grid cols={3}>
-          <Field label={t.date}><TextInput value={d.date} placeholder="SAT 14 NOV" onValue={(v) => set({ date: v.toUpperCase() })} /></Field>
+          <Field label={t.date}><TextInput value={d.date} placeholder={t.datePh} onValue={(v) => set({ date: v.toUpperCase() })} /></Field>
           <Field label={t.timeStart}><TextInput mono value={d.timeStart} placeholder="16:00" onValue={(v) => set({ timeStart: v })} /></Field>
           <Field label={t.timeEnd}><TextInput mono value={d.timeEnd} placeholder="20:00" onValue={(v) => set({ timeEnd: v })} /></Field>
         </Grid>
@@ -339,7 +376,7 @@ export function VatsimForm() {
       {d.kind === 'overload' && (
         <Card title={t.focusAirports} icon={Building2}>
           <Field label={t.focusAirports}><AirportList value={d.airports} max={3} onChange={(airports) => set({ airports })} placeholder={t.airportSearch} /></Field>
-          <Field label={t.feeders} hint={d.feeders.length ? undefined : 'auto: vNWS / RAG network'}><AirportList value={d.feeders} max={14} onChange={(feeders) => set({ feeders })} placeholder={t.airportSearch} /></Field>
+          <Field label={t.feeders} hint={d.feeders.length ? undefined : t.autoFeeders}><AirportList value={d.feeders} max={14} onChange={(feeders) => set({ feeders })} placeholder={t.airportSearch} /></Field>
           <Field label={t.firs}><FirPicker value={d.firs} onChange={(firs) => set({ firs })} /></Field>
         </Card>
       )}
@@ -349,16 +386,18 @@ export function VatsimForm() {
             <Field label={t.divisions}><DivisionPicker value={d.divisions} onChange={(divisions) => set({ divisions })} /></Field>
             <Field label={t.firs}><FirPicker value={d.firs} divisions={d.divisions} onChange={(firs) => set({ firs })} /></Field>
           </Card>
-          <Card title={t.vnwsLegs} icon={Route}><LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent="#FF4E57" /></Card>
-          <Card title={t.ragLegs} icon={Route}><LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent="#5EE2F2" /></Card>
+          <Card title={t.projects} icon={Building2}><ProjectPair value={d.projects ?? ['nws', 'rag']} onChange={(projects) => set({ projects })} /></Card>
+          <Card title={`${t.legs} ${projectById(d.projects?.[0] ?? 'nws').short}`} icon={Route}><LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={projectById(d.projects?.[0] ?? 'nws').colors.route} /></Card>
+          <Card title={`${t.legs} ${projectById(d.projects?.[1] ?? 'rag').short}`} icon={Route}><LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={projectById(d.projects?.[1] ?? 'rag').colors.route} /></Card>
         </>
       )}
 
       <Card title={t.positions} icon={Radar} hint={vatsim ? `${vatsim.firs.length} FIR / sectors · VATSpy` : undefined}>
         <Field label={t.positions}><TextInput mono value={d.positions} placeholder="UUEE_TWR, UUWV_CTR" onValue={(v) => set({ positions: v.toUpperCase() })} /></Field>
-        <Field label={t.hosts}><TextInput value={d.hosts} placeholder="VATRUS · Moscow vACC" onValue={(v) => set({ hosts: v })} /></Field>
+        <Field label={t.hosts}><TextInput value={d.hosts} placeholder={t.hostsPh} onValue={(v) => set({ hosts: v })} /></Field>
         <Field label={t.logoLibrary}><LogoPicker value={d.logos} onChange={(logos) => set({ logos })} /></Field>
       </Card>
+      <MapCard view={d.map} onChange={(map) => set({ map })} />
       <RewardCard value={d} onChange={set} t={t} />
     </>
   )

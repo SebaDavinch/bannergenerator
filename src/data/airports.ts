@@ -12,6 +12,8 @@ export interface AirportRecord extends AirportRef {
   /** Lower-cased haystack for search. */
   hay: string
   cityKey: string
+  /** Russian city name (empty when unknown). */
+  cityRu: string
 }
 
 interface AirportDb {
@@ -31,14 +33,15 @@ export function loadAirports(): Promise<AirportDb> {
       .then((r) => r.json())
       .then((raw: { fields: string[]; rows: (string | number)[][] }) => {
         const list: AirportRecord[] = raw.rows.map((r) => {
-          const [icao, iata, name, fullName, city, country, lat, lon, kind, network, ru, wiki] = r as [
-            string, string, string, string, string, string, number, number, string, number, string, string,
+          const [icao, iata, name, fullName, city, country, lat, lon, kind, network, ru, wiki, cityRu = ''] = r as [
+            string, string, string, string, string, string, number, number, string, number, string, string, string,
           ]
           return {
             icao, iata, name, fullName, city, country, lat, lon, wiki,
             size: kind[0] as AirportRecord['size'], scheduled: kind[1] === '1', network, ru,
             hay: fold(`${icao} ${iata} ${fullName} ${city} ${ru}`),
             cityKey: fold(city),
+            cityRu,
           }
         })
         const byIcao = new Map(list.map((a) => [a.icao, a]))
@@ -63,19 +66,23 @@ export function useAirportDb() {
 }
 
 export function toRef(a: AirportRecord): AirportRef {
-  return { icao: a.icao, iata: a.iata, name: a.name, city: a.city, country: a.country, lat: a.lat, lon: a.lon, wiki: a.wiki }
+  return { icao: a.icao, iata: a.iata, name: a.name, city: a.city, cityRu: a.cityRu, country: a.country, lat: a.lat, lon: a.lon, wiki: a.wiki }
 }
+
+/** City caption in the banner language. */
+export const cityName = (a: { city: string; cityRu?: string } | undefined | null, lang: 'ru' | 'en') =>
+  !a ? '' : lang === 'ru' && a.cityRu ? a.cityRu : a.city
 
 /**
  * Ranked search over ICAO / IATA / name / city / Russian aliases.
  * Exact code hits first, then prefix hits, then substring hits; bigger and
  * VA-network airports float up inside each tier.
  */
-export function searchAirports(db: AirportDb, query: string, opts: { brand?: 'nws' | 'rag'; limit?: number } = {}): AirportRecord[] {
+export function searchAirports(db: AirportDb, query: string, opts: { networkBit?: number; limit?: number } = {}): AirportRecord[] {
   const q = fold(query.trim())
   if (!q) return []
   const limit = opts.limit ?? 12
-  const brandBit = opts.brand === 'rag' ? 2 : opts.brand === 'nws' ? 1 : 0
+  const brandBit = opts.networkBit ?? 0
   const upper = query.trim().toUpperCase()
   const scored: { a: AirportRecord; s: number }[] = []
   const words = q.split(/\s+/).filter(Boolean)

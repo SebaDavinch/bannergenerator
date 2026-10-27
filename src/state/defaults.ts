@@ -17,6 +17,14 @@ export const defaultMap = (patch: Partial<MapView> = {}): MapView => ({
   labels: true,
   guard: 0.85,
   frame: 'content',
+  relief: true,
+  reliefStrength: 1,
+  rivers: true,
+  cities: false,
+  numbers: false,
+  labelMode: 'icao',
+  routeStyle: 'solid',
+  routeWidth: 4,
   ...patch,
 })
 
@@ -31,7 +39,7 @@ export const legsFrom = (text: string): Leg[] =>
     })
 
 const ULLI: AirportRef = {
-  icao: 'ULLI', iata: 'LED', name: 'Pulkovo', city: 'Saint Petersburg', country: 'RU', lat: 59.8003, lon: 30.2625, wiki: 'Pulkovo_Airport',
+  icao: 'ULLI', iata: 'LED', name: 'Pulkovo', city: 'Saint Petersburg', cityRu: 'Санкт-Петербург', country: 'RU', lat: 59.8003, lon: 30.2625, wiki: 'Pulkovo_Airport',
 }
 
 export function defaultModeData(): ModeDataMap {
@@ -41,6 +49,7 @@ export function defaultModeData(): ModeDataMap {
       photo: { ...emptyPhoto(0.1), src: '', local: '/brand/default-city.jpg' },
     },
     tour: {
+      layout: 'chips',
       title: 'Northern Cross Tour', description: 'A route across the northwest and the south of Russia.',
       legs: legsFrom('ULLI-UUEE\nUUEE-URSS\nURSS-ULLI'), bonusPoints: '350', registrationRequired: false, period: '', map: defaultMap(),
     },
@@ -82,6 +91,7 @@ export function defaultModeData(): ModeDataMap {
       bonusPoints: '350', registrationRequired: true, period: '',
     },
     event: {
+      projects: ['nws', 'rag'],
       title: 'Northern Bridge Joint Event', description: 'One map, two projects, separate colored legs for each route.',
       period: '', partners: '',
       vnwsLegs: legsFrom('ULLI-UUEE\nUUEE-URSS'), ragLegs: legsFrom('UUDD-ULLI\nULLI-UUDD'),
@@ -91,7 +101,7 @@ export function defaultModeData(): ModeDataMap {
       kind: 'shuttle', title: 'Moscow – Saint Petersburg Shuttle', description: 'Full ATC coverage on both ends. Fly as many rotations as you can.',
       date: '', timeStart: '16:00', timeEnd: '20:00',
       divisions: ['VATRUS'], firs: ['UUWV', 'ULLL'], airports: ['UUEE', 'ULLI'], feeders: [],
-      positions: 'UUEE_TWR, UUWV_CTR, ULLL_CTR, ULLI_APP', hosts: '', logos: [],
+      positions: 'UUEE_TWR, UUWV_CTR, ULLL_CTR, ULLI_APP', hosts: '', logos: [], projects: ['nws', 'rag'],
       vnwsLegs: legsFrom('ULLI-EDDM\nEDDM-LOWW'), ragLegs: legsFrom('UUEE-LKPR\nLKPR-UUDD'),
       bonusPoints: '500', registrationRequired: false, period: '', map: defaultMap(),
     },

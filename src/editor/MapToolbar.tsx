@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Crosshair, Lock, LockOpen, Maximize2, Minus, Plus, ScanLine, Settings2 } from 'lucide-react'
-import { defaultMap } from '../state/defaults'
+import { Crosshair, Lock, LockOpen, Minus, Plus, ScanLine, Settings2 } from 'lucide-react'
 import { useStore } from '../state/store'
 import type { MapView } from '../types'
 import { activeMap } from './activeMap'
 import { UI } from '../i18n'
-import { Button, Segmented, Slider, Switch } from '../ui/controls'
+import { Button } from '../ui/controls'
+import { MapOptions } from './MapOptions'
 import { boxCenter, fitBox, zoomAt } from '../map/projection'
 
 /** Floating map controls over the preview (outside the exported stage). */
@@ -42,24 +42,11 @@ export function MapToolbar({ guides, onGuides }: { guides: boolean; onGuides: (v
       </div>
       {open && (
         <div className="map-toolbar__panel">
-          <div className="map-toolbar__label">{t.mapTheme}</div>
-          <Segmented size="sm" value={view.theme} onChange={(v) => set({ theme: v })}
-            options={[{ value: 'night', label: 'Night' }, { value: 'dusk', label: 'Dusk' }, { value: 'steel', label: 'Steel' }]} />
-          <div className="map-toolbar__label">{t.projection}</div>
-          <Segmented size="sm" value={view.projection} onChange={(v) => set({ projection: v, zoom: 1, dx: 0, dy: 0 })}
-            options={[{ value: 'mercator', label: 'Mercator' }, { value: 'conic', label: 'Conic' }, { value: 'natural', label: 'World' }, { value: 'globe', label: 'Globe' }]} />
-          <div className="map-toolbar__label">{t.fit}</div>
-          <Segmented size="sm" value={view.frame} onChange={(v) => set({ frame: v, zoom: 1, dx: 0, dy: 0 })}
-            options={[{ value: 'content', label: t.fitContent }, { value: 'full', label: <><Maximize2 size={12} /> {t.fitFull}</> }]} />
           <div className="map-toolbar__grid">
             <label><span>X</span><input type="number" step={1} value={Math.round(view.dx)} disabled={view.locked} onChange={(e) => set({ dx: Number(e.target.value) || 0 })} /></label>
             <label><span>Y</span><input type="number" step={1} value={Math.round(view.dy)} disabled={view.locked} onChange={(e) => set({ dy: Number(e.target.value) || 0 })} /></label>
           </div>
-          <Switch checked={view.borders} onChange={(v) => set({ borders: v })} label={t.borders} />
-          <Switch checked={view.graticule} onChange={(v) => set({ graticule: v })} label={t.graticule} />
-          <Switch checked={view.labels} onChange={(v) => set({ labels: v })} label={t.labels} />
-          <Slider label={t.guard} value={view.guard} min={0} max={1} step={0.01} onChange={(v) => set({ guard: v })} format={(v) => `${Math.round(v * 100)}%`} />
-          <Button size="sm" onClick={() => set({ ...defaultMap(), theme: view.theme })}>{t.reset}</Button>
+          <MapOptions view={view} set={set} compact />
           <p className="muted small">{t.mapHint}</p>
         </div>
       )}

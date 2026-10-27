@@ -1,11 +1,6 @@
 import { apiBase } from '../data/fleet'
-import type { Brand } from '../types'
+import type { Project } from '../data/projects'
 import { commonsCategory, commonsSearch, dedupe, rateForBanner, type PhotoCandidate } from './commons'
-
-const AIRLINE_NAMES: Record<Brand, string[]> = {
-  nws: ['Nordwind Airlines', 'Pegas Fly', 'Ikar'],
-  rag: ['Rossiya Airlines', 'Aeroflot', 'Pobeda'],
-}
 
 const TYPE_NAMES: Record<string, string> = {
   A319: 'Airbus A319', A320: 'Airbus A320', A20N: 'Airbus A320neo', A321: 'Airbus A321', A21N: 'Airbus A321neo',
@@ -18,8 +13,9 @@ const TYPE_NAMES: Record<string, string> = {
 
 export const typeName = (code: string) => TYPE_NAMES[code.toUpperCase()] ?? code
 
-async function fromBackend(reg: string, brand: Brand, signal?: AbortSignal): Promise<PhotoCandidate[]> {
-  const params = new URLSearchParams({ source: brand === 'rag' ? 'rag' : 'vnws', limit: '8' })
+async function fromBackend(reg: string, project: Project, signal?: AbortSignal): Promise<PhotoCandidate[]> {
+  const params = new URLSearchParams({ limit: '8' })
+  if (project.fleet) params.set('source', project.fleet)
   const res = await fetch(`${apiBase()}/aircraft/photos/${encodeURIComponent(reg)}?${params}`, { signal })
   if (!res.ok) return []
   const body = (await res.json()) as { items: { provider: string; image_url: string; thumbnail_url?: string; attribution?: string; linkback?: string }[] }
@@ -47,11 +43,11 @@ async function fromPlanespotters(reg: string, signal?: AbortSignal): Promise<Pho
  * "Category:<REG> (aircraft)", Planespotters), then same-type photos in the
  * VA's livery as a fallback when the registration has no coverage.
  */
-export async function searchAircraftPhotos(opts: { reg: string; type: string; brand: Brand }, signal?: AbortSignal) {
+export async function searchAircraftPhotos(opts: { reg: string; type: string; project: Project }, signal?: AbortSignal) {
   const reg = opts.reg.trim().toUpperCase()
   const tasks: Promise<PhotoCandidate[]>[] = []
   if (reg) {
-    tasks.push(fromBackend(reg, opts.brand, signal).catch(() => []))
+    tasks.push(fromBackend(reg, opts.project, signal).catch(() => []))
     tasks.push(commonsCategory(`${reg} (aircraft)`, signal).then((l) => l.map((c) => ({ ...c, score: 80 + rateForBanner(c) }))).catch(() => []))
     tasks.push(commonsSearch(`"${reg}"`, signal, 20).then((l) => l.filter((c) => c.title.toUpperCase().replace(/\s/g, '').includes(reg.replace(/\s/g, ''))).map((c) => ({ ...c, score: 70 + rateForBanner(c) }))).catch(() => []))
     tasks.push(fromPlanespotters(reg, signal).catch(() => []))
@@ -61,7 +57,7 @@ export async function searchAircraftPhotos(opts: { reg: string; type: string; br
   if (exact.filter((c) => c.score >= 80).length < 3 && opts.type) {
     const model = typeName(opts.type)
     const lists = await Promise.all(
-      AIRLINE_NAMES[opts.brand].slice(0, 2).map((airline) => commonsSearch(`${airline} ${model}`, signal, 20).catch(() => [])),
+      (opts.project.airlines.length ? opts.project.airlines : [opts.project.name]).slice(0, 2).map((airline) => commonsSearch(`${airline} ${model}`, signal, 20).catch(() => [])),
     )
     const modelKey = model.split(' ').slice(-1)[0].toLowerCase()
     all = [...exact, ...lists.flat().filter((c) => c.title.toLowerCase().includes(modelKey)).map((c) => ({ ...c, score: 20 + rateForBanner(c) }))]

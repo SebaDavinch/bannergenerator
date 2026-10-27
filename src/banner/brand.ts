@@ -1,7 +1,10 @@
-import type { Brand } from '../types'
+import { mix } from '../map/themes'
+import type { Project } from '../data/projects'
 
+/** Banner-facing colours and identity derived from a vAMSYS project. */
 export interface BrandTheme {
-  id: Brand
+  project: Project
+  id: string
   short: string
   name: string
   accent: string
@@ -10,22 +13,29 @@ export interface BrandTheme {
   route: string
   routeGlow: string
   second: string
-  logo: string
-  logoHeight: number
   callsign: string
 }
 
-export const BRANDS: Record<Brand, BrandTheme> = {
-  nws: {
-    id: 'nws', short: 'vNWS', name: 'Nordwind Virtual', accent: '#E31E24', accentSoft: '#FF5A60',
-    gradient: 'linear-gradient(135deg,#FF3B41 0%,#E31E24 52%,#A9121A 100%)', route: '#FF4E57', routeGlow: 'rgba(255,40,52,.55)',
-    second: '#8FB4FF', logo: '/brand/nordwind-logo.png', logoHeight: 74, callsign: 'NWS',
-  },
-  rag: {
-    id: 'rag', short: 'RAG', name: 'Russian Airways Group', accent: '#3C8DFF', accentSoft: '#7FB6FF',
-    gradient: 'linear-gradient(135deg,#5CA8FF 0%,#2F6BFF 55%,#2338C9 100%)', route: '#5EE2F2', routeGlow: 'rgba(60,196,220,.5)',
-    second: '#BFD845', logo: '/brand/rag-logo.png', logoHeight: 64, callsign: 'RAG',
-  },
+const alpha = (hex: string, a: number) => {
+  const v = hex.replace('#', '')
+  return `rgba(${parseInt(v.slice(0, 2), 16)},${parseInt(v.slice(2, 4), 16)},${parseInt(v.slice(4, 6), 16)},${a})`
+}
+
+export function brandTheme(p: Project): BrandTheme {
+  const c = p.colors
+  return {
+    project: p,
+    id: p.id,
+    short: p.short,
+    name: p.name,
+    accent: c.primary,
+    accentSoft: mix(c.primary, '#ffffff', 0.28),
+    gradient: `linear-gradient(135deg, ${mix(c.primary, '#ffffff', 0.18)} 0%, ${c.primary} 52%, ${mix(c.primary, '#000000', 0.28)} 100%)`,
+    route: c.route,
+    routeGlow: alpha(c.route, 0.55),
+    second: c.secondary,
+    callsign: p.callsign || p.icao,
+  }
 }
 
 export const TEAM_COLORS = ['#FF4B50', '#3CC4DC', '#BFD845', '#B060DB']
