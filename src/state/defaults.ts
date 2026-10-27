@@ -67,7 +67,7 @@ export function defaultModeData(): ModeDataMap {
       bonusPoints: '350', registrationRequired: false, period: '',
     },
     'community-challenge': {
-      scene: 'runways', title: 'Spring Community Challenge', description: '',
+      scene: 'versus', title: 'Spring Community Challenge', description: '',
       teams: [
         { id: uid(), name: 'Team North Star', countType: 'flights', target: '150' },
         { id: uid(), name: 'Team Meridian', countType: 'flights', target: '150' },
@@ -76,7 +76,7 @@ export function defaultModeData(): ModeDataMap {
       bonusPoints: '350', registrationRequired: false, period: '',
     },
     'community-goal': {
-      scene: 'radar', title: 'April Community Goal', description: 'The whole community flies toward one shared counter.',
+      scene: 'gauge', title: 'April Community Goal', description: 'The whole community flies toward one shared counter.',
       countType: 'flights', target: '1200', progress: '',
       radar: { fir: 'URRV', sectors: true, traffic: 7, seed: 7, rings: true },
       bonusPoints: '350', registrationRequired: false, period: 'APRIL 2026',

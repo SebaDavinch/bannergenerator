@@ -135,10 +135,12 @@ export interface Team {
   name: string
   countType: CountType
   target: string
+  /** Optional current value; shows a progress bar on the banner. */
+  current?: string
 }
 
-export type ChallengeScene = 'photo' | 'runways' | 'holding' | 'board' | 'contrails'
-export type GoalScene = 'radar' | 'cockpit' | 'approach' | 'board' | 'contrails'
+export type ChallengeScene = 'versus' | 'photo' | 'runways' | 'holding' | 'board' | 'contrails'
+export type GoalScene = 'gauge' | 'radar' | 'cockpit' | 'approach' | 'board' | 'contrails'
 
 export interface ChallengeData extends Common {
   scene: ChallengeScene

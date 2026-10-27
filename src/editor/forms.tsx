@@ -141,6 +141,7 @@ export function RosterForm({ mode }: { mode: 'roster' | 'curated-roster' }) {
 
 // ── Challenge ─────────────────────────────────────────────────────────────
 const CHALLENGE_SCENES: { value: ChallengeScene; ru: string; en: string }[] = [
+  { value: 'versus', ru: 'Противостояние', en: 'Versus' },
   { value: 'runways', ru: 'Полосы', en: 'Runways' },
   { value: 'holding', ru: 'Зона ожидания', en: 'Holding' },
   { value: 'board', ru: 'Табло', en: 'Board' },
@@ -164,6 +165,7 @@ export function ChallengeForm() {
             <TextInput value={team.name} onValue={(v) => patchTeam(team.id, { name: v })} placeholder={t.team} />
             <Select value={team.countType} onChange={(v: CountType) => patchTeam(team.id, { countType: v })} options={COUNT_TYPES.map((c) => ({ value: c.value, label: c[state.locale] }))} />
             <TextInput mono inputMode="numeric" value={team.target} onValue={(v) => patchTeam(team.id, { target: v })} placeholder={t.target} />
+            <TextInput mono inputMode="numeric" value={team.current ?? ''} onValue={(v) => patchTeam(team.id, { current: v })} placeholder={t.progressShort} />
             <Button variant="ghost" size="sm" icon={X} disabled={d.teams.length <= 2} onClick={() => set({ teams: d.teams.filter((x) => x.id !== team.id) })} aria-label="remove" />
           </div>
         ))}
@@ -185,6 +187,7 @@ export function ChallengeForm() {
 
 // ── Goal ──────────────────────────────────────────────────────────────────
 const GOAL_SCENES: { value: GoalScene; ru: string; en: string }[] = [
+  { value: 'gauge', ru: 'Прибор', en: 'Gauge' },
   { value: 'radar', ru: 'Радар VATSIM', en: 'VATSIM radar' },
   { value: 'cockpit', ru: 'Приборы', en: 'Cockpit' },
   { value: 'approach', ru: 'Схема захода', en: 'Approach' },

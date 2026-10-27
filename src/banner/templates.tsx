@@ -17,6 +17,7 @@ import { TEAM_COLORS, brandTheme, type BrandTheme } from './brand'
 import { AccentBar, BrandLogo, Guard, ModeBadge, Period, PhotoLayer, Reward, Ticks, Title } from './parts'
 import { titleSize } from './layout'
 import { RadarScene } from './RadarScene'
+import { GoalGauge, NetworkBackdrop, VersusArena } from './hero'
 import { ApproachScene, BoardScene, CockpitScene, ContrailsScene, HoldingScene, RunwayScene, type BoardRow } from './scenes'
 
 interface Ctx<T> {
@@ -322,18 +323,22 @@ export function ChallengeBanner(ctx: Ctx<ChallengeData>) {
   }))
   return (
     <Frame brand={brand}>
+      {data.scene === 'versus' && (
+        <div className="b-arena-bg" style={{ background: `radial-gradient(60% 70% at 10% 95%, ${TEAM_COLORS[0]}40 0%, transparent 60%), radial-gradient(60% 70% at 92% 95%, ${TEAM_COLORS[1]}40 0%, transparent 60%), radial-gradient(80% 60% at 50% 0%, #1a2436 0%, #07090e 70%)` }} />
+      )}
       {data.scene === 'photo' && <PhotoLayer photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } }) : undefined} />}
       {data.scene === 'runways' && <RunwayScene lanes={lanes} seed={seed} />}
       {data.scene === 'holding' && <HoldingScene tracks={tracks} seed={seed} lang={lang} />}
       {data.scene === 'board' && <BoardScene compact lang={lang} rows={[...teamRows, ...rows].slice(0, 13)} title={BANNER_COPY[lang].challengeBoard} />}
       {data.scene === 'contrails' && <ContrailsScene colors={TEAM_COLORS.slice(0, Math.max(2, teams.length))} seed={seed} count={teams.length * 3} />}
-      <div className="b-scrim b-scrim--challenge" />
+      {data.scene !== 'versus' && <div className="b-scrim b-scrim--challenge" />}
+      {data.scene === 'versus' && <VersusArena teams={teams} lang={lang} brand={brand} />}
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
-        <Title text={data.title} width={960} size={titleSize(data.title, { max: 112, min: 66, width: 900, lines: 2 })} />
+        <Title text={data.title} width={960} size={titleSize(data.title, { max: data.scene === 'versus' ? 96 : 112, min: 66, width: 900, lines: 2 })} />
         <Ticks brand={brand} />
-        {data.description && <p className="b-desc">{data.description}</p>}
-        <div className={`b-teams b-teams--${teams.length}`}>
+        {data.description && data.scene !== 'versus' && <p className="b-desc">{data.description}</p>}
+        {data.scene !== 'versus' && <div className={`b-teams b-teams--${teams.length}`}>
           {teams.map((t, i) => (
             <div className="b-team" key={t.id} style={{ ['--team' as string]: TEAM_COLORS[i] }}>
               {teams.length === 2 && i === 1 && <span className="b-team__vs">VS</span>}
@@ -342,7 +347,7 @@ export function ChallengeBanner(ctx: Ctx<ChallengeData>) {
               <span className="b-team__unit">{countUnit(t.countType, lang)}</span>
             </div>
           ))}
-        </div>
+        </div>}
       </div>
       <Period text={data.period} brand={brand} />
       <Footer ctx={ctx} points={data.bonusPoints} registration={data.registrationRequired} />
@@ -362,17 +367,19 @@ export function GoalBanner(ctx: Ctx<GoalData>) {
   const rows = useBoardRows(seed, brand.callsign, networkBit(project) || 3, lang)
   return (
     <Frame brand={brand}>
+      {data.scene === 'gauge' && <NetworkBackdrop project={project} brand={brand} lang={lang} />}
+      {data.scene === 'gauge' && <GoalGauge target={data.target} progress={data.progress} unit={countUnit(data.countType, lang)} brand={brand} lang={lang} />}
       {data.scene === 'radar' && <RadarScene fir={data.radar.fir} sectors={data.radar.sectors} traffic={data.radar.traffic} seed={seed} rings={data.radar.rings} accent={brand.accentSoft} callsign={brand.callsign} />}
       {data.scene === 'cockpit' && <CockpitScene seed={seed} accent={brand.accent} value={target} />}
       {data.scene === 'approach' && <ApproachScene icao={data.radar.fir.slice(0, 2) === 'UU' ? 'UUEE' : 'ULLI'} runway="ILS 06R" accent={brand.accentSoft} />}
       {data.scene === 'board' && <BoardScene lang={lang} rows={rows} big={fmtNum(target).replace(/\s/g, '')} title={BANNER_COPY[lang].goalBoard} />}
       {data.scene === 'contrails' && <ContrailsScene colors={[brand.accentSoft, brand.second, '#ffffff']} seed={seed} count={data.radar.traffic + 4} />}
-      <div className="b-scrim b-scrim--goal" />
+      <div className={`b-scrim ${data.scene === 'gauge' ? 'b-scrim--gauge' : 'b-scrim--goal'}`} />
       <div className="b-content">
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
         <Title text={data.title} width={820} size={titleSize(data.title, { max: 104, min: 64, width: 760, lines: 2 })} />
         <Ticks brand={brand} />
-        <div className="b-goal">
+        {data.scene !== 'gauge' && <div className="b-goal">
           <span className="b-goal__value" style={{ color: brand.accentSoft, textShadow: `0 0 60px ${brand.routeGlow}` }}>{fmtNum(data.target)}</span>
           <span className="b-goal__unit">{countUnit(data.countType, lang)}</span>
           {pct !== null && (
@@ -381,8 +388,8 @@ export function GoalBanner(ctx: Ctx<GoalData>) {
               <span className="b-goal__pct">{c.progress} · {fmtNum(data.progress)} / {fmtNum(data.target)} · {Math.round(pct)}%</span>
             </div>
           )}
-        </div>
-        {data.description && <p className="b-desc b-desc--narrow">{data.description}</p>}
+        </div>}
+        {data.description && <p className={`b-desc ${data.scene === 'gauge' ? '' : 'b-desc--narrow'}`}>{data.description}</p>}
       </div>
       {data.scene === 'radar' && fir && <div className="b-scene-caption"><Radio size={20} /> {fir.id} · {fir.name}</div>}
       <Period text={data.period} brand={brand} />

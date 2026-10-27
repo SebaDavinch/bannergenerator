@@ -244,3 +244,24 @@
 .b-itinerary__stop b { font-family: 'JetBrains Mono'; font-size: 26px; }
 .b-itinerary__stop i { font-style: normal; font-size: 22px; color: rgba(255,255,255,.75); overflow: hidden; text-overflow: ellipsis; }
 .b-itinerary__nm { margin-left: auto; font-family: 'JetBrains Mono'; font-size: 19px; color: rgba(255,255,255,.55); }
+
+/* goal gauge */
+.b-scrim--gauge { background: linear-gradient(90deg, rgba(4,7,11,.94) 0%, rgba(4,7,11,.78) 30%, rgba(4,7,11,.25) 52%, rgba(4,7,11,.15) 100%), linear-gradient(0deg, rgba(4,7,11,.85) 0%, rgba(4,7,11,0) 32%); }
+
+/* challenge versus arena */
+.b-arena-bg { position: absolute; inset: 0; }
+.b-arena { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.b-arena__team { position: absolute; overflow: hidden; border-top: 6px solid var(--team);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.b-arena__plane { position: absolute; top: 50%; width: 360px; height: 360px; margin-top: -180px; opacity: .22; filter: drop-shadow(0 20px 40px rgba(0,0,0,.5)); }
+.b-arena__body { position: relative; display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0 44px; gap: 6px; }
+.b-arena__name { font-family: 'Oswald'; font-weight: 600; font-size: 40px; text-transform: uppercase; letter-spacing: .08em; color: var(--team); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.b-arena__value { font-family: 'Oswald'; font-weight: 700; line-height: .95; color: #fff; text-shadow: 0 8px 40px rgba(0,0,0,.5); }
+.b-arena__unit { font-weight: 600; font-size: 24px; text-transform: uppercase; letter-spacing: .2em; color: rgba(255,255,255,.7); }
+.b-arena__progress { display: flex; align-items: center; gap: 16px; margin-top: 18px; width: 82%; }
+.b-arena__bar { flex: 1; height: 12px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+.b-arena__bar i { display: block; height: 100%; border-radius: inherit; background: var(--team); box-shadow: 0 0 20px var(--team); }
+.b-arena__progress b { font-family: 'JetBrains Mono'; font-size: 24px; }
+.b-arena__vs { position: absolute; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #0b0f17; font-family: 'Oswald'; font-weight: 700; font-size: 54px; letter-spacing: .02em; }
+
+.scene--front { z-index: 3; pointer-events: none; }
