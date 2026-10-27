@@ -1,72 +1,72 @@
-# VA Assistant
+# Banner Studio
 
-Frontend + Python backend foundation for a VA assistant for Nordwind Virtual and Russian Airways Group. The current workspace includes a React banner/event editor and a FastAPI backend scaffold prepared for vAMSYS Operations API integration.
+Генератор баннеров ивентов для **Nordwind Virtual (vNWS)** и **Russian Airways Group (RAG)**. Фронтенд написан с нуля на дизайн-системе NordwindHub (Oswald + Inter, тёмные стеклянные панели, красный акцент). Рядом лежит FastAPI-бэкенд из прошлой версии: синхронизация с vAMSYS, поиск фото самолётов, прокси для картинок.
 
-## What It Includes
+## Режимы (все типы ивентов vAMSYS)
 
-- Frontend event and banner editor with live preview and PNG export.
-- Supports switching between Focus Airport, Tour, Roster, Curated Roster, Community Challenge, and Community Goal event modes.
-- Adds a Community Challenge mode with editable team cards, goal types, and target amounts.
-- Adds a Community Goal mode with one shared community-wide target and metric selection.
-- Edits the main banner fields for each mode, including per-event bonus points and an optional Registration Required banner badge.
-- Adds route-driven Tour, Roster, and Curated Roster modes with editable legs, editable descriptions, and a vector world route map positioned by airport coordinates.
-- Supports switching between built-in Nordwind Virtual and Russian Airways Group brand presets.
-- Renders the airport block as a flag + airport name + ICAO chip using a two-letter country code.
-- Supports switching the interface between Russian and English.
-- Offers 3-4 automatic city-photo suggestions from Wikimedia Commons for Focus Airport banners, with local upload as a manual override.
-- Supports randomizing and regenerating Focus Airport system picks, plus saving selected Wikimedia backgrounds to Favorites for later reuse.
-- Uses the selected built-in project logo in preview and export.
-- Shows a live 16:9 preview in Nordwind-style colors.
-- Exports the banner as a PNG in 1920x1080.
-- Python FastAPI backend scaffold in `backend/`.
-- File-backed audit logs and event drafts with no database dependency.
-- File-backed airport catalogs for `rag` and `vnws`.
-- vAMSYS OAuth client credentials foundation for both `vnws` and `rag`, plus activity create endpoints for events, focus airports, tours, rosters, community goals, and community challenges.
-- Airport catalog sync from the real vAMSYS `/airports` endpoint into the local file-backed source catalogs.
-- Aircraft catalog sync from the real vAMSYS `/fleet` and `/fleet/{fleet_id}/aircraft` endpoints into source-specific local catalogs.
+| Режим | Что на баннере |
+|---|---|
+| **Focus Airport** | Город и аэропорт (флаг, название, ICAO/IATA, координаты), фоном самая узнаваемая достопримечательность города |
+| **Tour** | Карта маршрута, автоматически вписанная справа от текста; леги, число аэропортов и общая дистанция в NM |
+| **Roster** | Фото конкретного борта VA (подбирается по регистрации) или карта; цепочка аэропортов |
+| **Curated Roster** | То же, плюс таблица смены: номер рейса, откуда/куда, NM |
+| **Community Challenge** | 2–4 команды (VS-карточки) и сцена: параллельные ВПП, схемы ожидания, табло split-flap, инверсионные следы или затемнённое фото |
+| **Community Goal** | Крупная цель и прогресс. Сцены: радар реального сектора VATSIM (FIR и подсекторы, аэропорты, трафик с формулярами), приборная панель, схема ILS-захода, табло, следы |
+| **Slotted Event** | Волны слотов на таймлайне и «посадочный талон» с QR-кодом на страницу бронирования (вместо прежней плашки «Забронировать слот») |
+| **Collab Event** | Маршруты vNWS и RAG своими цветами на одной карте, две награды, оба логотипа |
+| **VATSIM Event** | Четыре формата: **шаттл** (A ⇄ B), **онлайн-день** (подсвеченные FIR/vACC и аэропорты), **оверлоад** (слёт в аэропорт со всех направлений сети VA), **межрегион** (дивизионы + маршруты vNWS/RAG). Плюс позиции УВД, организаторы, логотипы партнёров |
 
-## Frontend Scripts
+## Карта
 
-- `npm run dev` starts the local Vite development server.
-- `npm run build` builds the production bundle.
-- `npm run preview` previews the production build locally.
-- `npm run lint` runs ESLint.
+- Маршрут автоматически вписывается в безопасную зону: справа от текстовой колонки и выше строки награды и логотипа (режим «Весь баннер» использует весь кадр).
+- Проекции: Mercator (на межконтинентальных маршрутах сама переключается на Natural Earth), Conformal Conic, World, Globe.
+- Карта всегда пересчитывается векторно в координатах 1920×1080, поэтому превью совпадает с экспортом на любом масштабе. Перетаскивание и зум колесом идут через CSS-трансформ, а при отпускании точно фиксируются в проекции.
+- Колесо приближает к курсору, двойной клик — приближение (с Shift — отдаление), стрелки сдвигают на 8 px (с Shift — на 60 px), `+`/`−` меняют масштаб. Зум и смещение X/Y можно ввести числом, карту можно зафиксировать замком, рамку безопасной зоны — показать поверх превью.
+- Подписи-чипы (флаг + ICAO, по желанию город) раскладываются без наложений. Встречные леги A→B и B→A расходятся дугами в разные стороны.
+- Темы карты: Night, Dusk, Steel.
 
-## Backend
+## Данные (`public/data/`, собираются `npm run build:data`)
 
-- Backend source: `backend/`
-- Backend setup instructions: `backend/README.md`
-- Main API entrypoint: `backend/app/main.py`
+| Файл | Источник | Содержимое |
+|---|---|---|
+| `airports.json` | OurAirports | 17 606 аэропортов с ICAO: город, страна, координаты, IATA, русские алиасы, отметка о сети vNWS/RAG |
+| `vatsim.json`, `firs.json` | VATSpy data project | 21 дивизион, 1 219 границ FIR и подсекторов, привязка аэропорт → FIR, страны по префиксам (группы vACC) |
+| `fleet.json` | Каталоги vAMSYS из `backend/data/aircraft` | 269 бортов vNWS и RAG: регистрация, тип, модель |
+| `countries-50m.json` | Natural Earth (world-atlas) | Суша и границы стран |
 
-Core backend endpoints:
+Если бэкенд запущен, флот берётся из его свежей синхронизации с vAMSYS, иначе из снапшота.
 
-- `GET /api/health`
-- `GET /api/airports`
-- `POST /api/airports/import`
-- `POST /api/airports/sync/{source}`
-- `GET /api/aircraft`
-- `POST /api/aircraft/sync/{source}`
-- `GET /api/drafts`
-- `POST /api/drafts`
-- `GET /api/logs`
-- `GET /api/vamsys/status`
-- `POST /api/vamsys/activities/{activity_type}`
+## Фото
 
-## Hosting
+- **Достопримечательности** (Focus Airport, Slotted): город определяется по аэропорту через Wikidata (P931 «обслуживаемый город»). Дальше берутся объекты этого города с фото, отсортированные по числу языковых версий Википедии — это хорошее мерило узнаваемости. Отдельно подтягиваются ночной, аэро- и зимний виды города. Административные единицы, станции метро и вокзалы, аэропорты и люди отсеиваются, а горизонтальные кадры высокого разрешения идут первыми. Если Wikidata ничего не дала, поиск идёт по Wikimedia Commons.
+- **Самолёты**: сначала фото именно этого борта — бэкенд (JetPhotos/vAMSYS), категория Commons «<REG> (aircraft)», Planespotters. Если их мало, добавляются фото того же типа в ливрее авиакомпании.
+- Каждая выбранная картинка скачивается локально (напрямую или через `/api/aircraft/photo-proxy`) и ужимается до 3200 px по длинной стороне. Так экспорт не ломается из-за CORS, а превью остаётся лёгким.
+- Кадрирование: масштаб, точка фокуса, затемнение и размытие. Фото можно двигать мышью прямо на превью.
 
-- Static hosting: after `npm run build`, deploy the contents of `dist/` to any static host.
-- Local production preview: run `npm run preview -- --host 0.0.0.0 --port 4173`.
-- Manual Linux + Nginx deploy for `banner.vnws.ru`: see `deploy/linux/README.md`.
-- Frontend Docker hosting:
+## Экспорт
+
+PNG, JPG или WebP; 1280×720, 1920×1080, 2560×1440 или 3840×2160; качество, имя файла, копирование в буфер (`Ctrl/⌘+E` открывает диалог). Каждый экспорт попадает в «Историю» с миниатюрой, и его можно снова открыть в редакторе.
+
+## Логотипы
+
+В библиотеке уже есть VATSIM, vNWS и RAG. Логотипы vACC и партнёров загружаются из интерфейса (хранятся в браузере). Можно положить файлы в `public/logos/` и перечислить их в `public/logos/index.json` (`[{ "id": "vatrus", "name": "VATRUS", "file": "vatrus.png" }]`), тогда они станут доступны всей команде.
+
+## Скрипты
+
+- `npm run dev` — dev-сервер (прокси `/api` → `127.0.0.1:8000`)
+- `npm run build` — typecheck + production build
+- `npm run lint` — ESLint
+- `npm run build:data` — пересобрать базы в `public/data/`
+
+## Бэкенд
+
+FastAPI в `backend/` (инструкция в `backend/README.md`): синхронизация аэропортов и флота с vAMSYS, поиск фото самолётов, прокси изображений, черновики и аудит-лог.
+
+## Хостинг
+
+Статический `dist/` за любым веб-сервером; для `banner.vnws.ru` см. `deploy/linux/README.md`. Docker:
 
 ```bash
 docker build -t vac-banner-generator .
 docker run --rm -p 8080:80 vac-banner-generator
 ```
-
-## Notes
-
-- The app is intentionally separate from FlightManagerBot.
-- The backend currently uses file storage instead of a database by design.
-- For real production use, upload only licensed or owned city photography.
-- The preview layout is optimized around these VA event formats for both projects.

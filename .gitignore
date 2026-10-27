@@ -38,3 +38,6 @@ backend/data/drafts/*.json
 
 # Release / compiled artifacts
 release/
+
+# reference-data download cache (scripts/build-data.mjs)
+.data-cache/
