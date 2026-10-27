@@ -49,13 +49,14 @@ a:hover { color: var(--fg-1); }
 .rail__item.is-active .rail__text b { color: var(--fg-1); }
 .rail__text span { font-size: 11.5px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: 20px; padding: 20px; align-items: start; }
-.workspace__preview { position: sticky; top: 84px; min-width: 0; }
-.workspace__editor { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
-@media (max-width: 1500px) { .workspace { grid-template-columns: minmax(0, 1fr) 460px; } }
+.workspace { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; }
+/* Settings on the left, live preview on the right. */
+.workspace__preview { position: sticky; top: 84px; min-width: 0; order: 2; }
+.workspace__editor { min-width: 0; display: flex; flex-direction: column; gap: 14px; order: 1; }
+@media (max-width: 1500px) { .workspace { grid-template-columns: 460px minmax(0, 1fr); } }
 @media (max-width: 1280px) {
   .workspace { grid-template-columns: 1fr; }
-  .workspace__preview { position: relative; top: 0; }
+  .workspace__preview { position: relative; top: 0; order: 0; }
 }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
