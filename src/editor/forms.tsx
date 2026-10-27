@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import {
-  Award, Building2, CalendarClock, Camera, Clapperboard, Gauge, Globe2, Images, MapPinned, Plane, Plus, Radar, RefreshCw, Route, Shuffle, Ticket, Type, Users, X,
+  Award, Building2, CalendarClock, Clapperboard, Gauge, Globe2, Images, MapPinned, Plane, Plus, Radar, RefreshCw, Route, Shuffle, Ticket, Type, Users, X,
 } from 'lucide-react'
 import { toRef, useAirportDb } from '../data/airports'
 import { useVatsimDb } from '../data/vatsim'
@@ -87,9 +87,8 @@ export function FocusForm() {
           <Field label={t.tagline}><TextInput value={d.tagline} placeholder={t.taglinePh} onValue={(v) => set({ tagline: v })} /></Field>
         </Grid>
       </Card>
-      <Card title={t.landmarks} icon={Camera} hint="Wikidata · Wikimedia Commons">
-        <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={search} searchKey={`${d.airport?.icao}|${city}`} />
-      </Card>
+      <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={search} searchKey={`${d.airport?.icao}|${city}`}
+        title={t.landmarks} hint="Wikidata · Wikimedia Commons" note={false} />
       <RewardCard value={d} onChange={set} t={t} />
     </>
   )
@@ -129,7 +128,7 @@ export function RosterForm({ mode }: { mode: 'roster' | 'curated-roster' }) {
         {d.visual === 'aircraft' ? (
           <>
             <AircraftPicker value={d.aircraft} onChange={(aircraft) => set({ aircraft, photo: { ...d.photo, auto: true } })} />
-            <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={search}
+            <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} title={t.aircraftPhotos} hint="Planespotters · JetPhotos · Commons" search={search}
               searchKey={d.aircraft.reg || d.aircraft.type ? `${state.brand}|${d.aircraft.reg}|${d.aircraft.type}` : ''} />
           </>
         ) : <MapOptions view={d.map} set={(p) => set({ map: { ...d.map, ...p } })} />}
@@ -279,10 +278,10 @@ export function SlottedForm() {
         {d.visual === 'aircraft' && (
           <>
             <AircraftPicker value={d.aircraft} onChange={(aircraft) => set({ aircraft, photo: { ...d.photo, auto: true } })} />
-            <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={aircraftSearch} searchKey={d.aircraft.reg || d.aircraft.type ? `ac|${state.brand}|${d.aircraft.reg}|${d.aircraft.type}` : ''} />
+            <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} title={t.aircraftPhotos} hint="Planespotters · JetPhotos · Commons" search={aircraftSearch} searchKey={d.aircraft.reg || d.aircraft.type ? `ac|${state.brand}|${d.aircraft.reg}|${d.aircraft.type}` : ''} />
           </>
         )}
-        {d.visual === 'photo' && <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={citySearch} searchKey={`city|${dest?.icao ?? ''}`} />}
+        {d.visual === 'photo' && <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} title={t.cityPhotos} hint="Wikidata · Wikimedia Commons" search={citySearch} searchKey={`city|${dest?.icao ?? ''}`} />}
         {d.visual === 'map' && <MapOptions view={d.map} set={(p) => set({ map: { ...d.map, ...p } })} />}
       </Card>
       <RewardCard value={d} onChange={set} t={t} />

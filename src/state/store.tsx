@@ -25,7 +25,10 @@ function load(): StudioState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return base
     const saved = JSON.parse(raw)
-    return { ...mergeDefaults(base, saved), data: mergeDefaults(defaultModeData(), saved.data) }
+    const data = mergeDefaults(defaultModeData(), saved.data)
+    const merged = mergeDefaults(base, saved)
+    // A mode removed or renamed since the save falls back to the default one.
+    return { ...merged, mode: merged.mode in data ? merged.mode : base.mode, data }
   } catch {
     return base
   }

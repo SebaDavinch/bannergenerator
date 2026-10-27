@@ -15,15 +15,18 @@ type Candidate = PhotoCandidate & { landmark?: string }
  * Suggestion grid + upload + framing for a banner photo. Re-searches when
  * `searchKey` changes and auto-picks the best hit unless the user chose one.
  */
-export function PhotoPicker({ photo, onChange, search, searchKey, framing = true, dimDefault = 0, title }: {
+export function PhotoPicker({ photo, onChange, search, searchKey, framing = true, dimDefault = 0, title, hint, note = true }: {
   photo: PhotoState
   onChange: (p: Partial<PhotoState>) => void
   search: (signal: AbortSignal) => Promise<Candidate[]>
   searchKey: string
   framing?: boolean
   dimDefault?: number
-  /** Gallery heading under the preview. */
+  /** Panel heading and source note (e.g. "Landmarks", "Wikidata · Commons"). */
   title?: string
+  hint?: string
+  /** Leave a pointer in the form when the panel is shown on the right. */
+  note?: boolean
 }) {
   const { state } = useStore()
   const t = UI[state.locale]
@@ -82,14 +85,24 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
 
   useEffect(() => { onFileRef.current = (f) => { void onFile(f) } })
   const selected = photo.local || photo.src
-  // Suggestions live under the preview (right column) when that slot exists.
-  const gallery = (results !== null || loading) && (
-    <section className="gallery">
+  // One panel: actions, suggestions and framing. It lives under the preview
+  // (right column) when that slot exists, otherwise inline in the form.
+  const panel = (
+    <section className="gallery photo-picker"
+      onDragOver={(e) => { if ([...e.dataTransfer.items].some((i) => i.type.startsWith('image/'))) e.preventDefault() }}
+      onDrop={(e) => { const f = [...e.dataTransfer.files].find((x) => x.type.startsWith('image/')); if (f) { e.preventDefault(); void onFile(f) } }}>
       <header className="gallery__head">
         <span className="gallery__title">{title ?? t.photoGallery}</span>
         {results && results.length > 0 && <span className="gallery__count">{results.length}</span>}
-        {loading && <span className="gallery__status"><RefreshCw size={13} className="spin" /> {t.searching}</span>}
-        <span className="gallery__hint">{t.pasteHint}</span>
+        {hint && <span className="gallery__source">{hint}</span>}
+        <div className="gallery__actions">
+          <Button size="sm" variant="primary" icon={loading ? RefreshCw : Sparkles} disabled={loading} onClick={() => run(false)} className={loading ? 'is-spinning' : ''}>
+            {loading ? t.searching : t.findPhotos}
+          </Button>
+          <Button size="sm" icon={ImagePlus} onClick={() => fileRef.current?.click()}>{t.upload}</Button>
+          {selected && <Button size="sm" variant="ghost" icon={Trash2} onClick={() => onChange({ src: '', local: undefined, credit: '', title: '', auto: false })}>{t.clear}</Button>}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+        </div>
       </header>
       {results && results.length > 0 && (
         <div className="photo-grid photo-grid--wide">
@@ -106,23 +119,7 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
         </div>
       )}
       {results && results.length === 0 && !loading && <p className={error ? 'warn small' : 'muted small'}>{error ? t.photoBlocked : t.noPhotos}</p>}
-    </section>
-  )
-  return (
-    <div className="photo-picker"
-      onDragOver={(e) => { if ([...e.dataTransfer.items].some((i) => i.type.startsWith('image/'))) e.preventDefault() }}
-      onDrop={(e) => { const f = [...e.dataTransfer.files].find((x) => x.type.startsWith('image/')); if (f) { e.preventDefault(); void onFile(f) } }}>
-      <div className="photo-picker__bar">
-        <Button size="sm" variant="primary" icon={loading ? RefreshCw : Sparkles} disabled={loading} onClick={() => run(false)} className={loading ? 'is-spinning' : ''}>
-          {loading ? t.searching : t.findPhotos}
-        </Button>
-        <Button size="sm" icon={ImagePlus} onClick={() => fileRef.current?.click()}>{t.upload}</Button>
-        {selected && <Button size="sm" variant="ghost" icon={Trash2} onClick={() => onChange({ src: '', local: undefined, credit: '', title: '', auto: false })}>{t.clear}</Button>}
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
-      </div>
-
-      {!slot && gallery}
-      {slot && createPortal(gallery, slot)}
+      <p className="gallery__hint">{t.pasteHint}</p>
       {(photo.credit || photo.title) && selected && <p className="photo-picker__credit">{photo.title}{photo.credit && ` — ${photo.credit}`}</p>}
 
       {framing && selected && (
@@ -135,6 +132,7 @@ export function PhotoPicker({ photo, onChange, search, searchKey, framing = true
           <p className="muted small">{t.dragHint}</p>
         </div>
       )}
-    </div>
+    </section>
   )
+  return slot ? <>{createPortal(panel, slot)}{note && <p className="muted small photo-picker__moved">{t.photoPanelRight}</p>}</> : panel
 }

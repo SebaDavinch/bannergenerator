@@ -402,8 +402,11 @@ a:hover { color: var(--fg-1); }
 .gallery__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .gallery__title { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 14px; }
 .gallery__count { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 6px; padding: 2px 7px; }
-.gallery__status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-2); }
-.gallery__hint { margin-left: auto; font-size: 11.5px; color: var(--fg-3); }
+.gallery__hint { margin: 0; font-size: 11.5px; color: var(--fg-3); }
+.gallery__source { font-size: 11.5px; color: var(--fg-3); }
+.gallery__actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.gallery .photo-picker__framing { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.photo-picker__moved { margin: 0; }
 .photo-grid--wide { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .photo-grid--wide .photo-grid__label b { font-size: 12.5px; }
 .photo-grid--wide .photo-grid__label i { font-size: 11px; }
