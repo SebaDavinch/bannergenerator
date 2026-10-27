@@ -48,7 +48,7 @@
 .b-logos--pair { gap: 22px; }
 .b-logos__x { font-family: 'Oswald'; font-weight: 500; font-size: 52px; color: rgba(255,255,255,.5); }
 .b-logo { display: block; width: auto; object-fit: contain; filter: drop-shadow(0 6px 20px rgba(0,0,0,.35)); }
-.b-netlogo { height: 46px; width: auto; opacity: .92; filter: brightness(0) invert(1); padding-right: 30px; border-right: 2px solid rgba(255,255,255,.2); }
+.b-netlogo { height: 58px; width: auto; padding-right: 30px; border-right: 2px solid rgba(255,255,255,.2); }
 .b-period { position: absolute; top: 96px; right: 96px; z-index: 5; display: flex; align-items: flex-start; gap: 14px; font-family: 'Oswald'; font-weight: 500; font-size: 34px; letter-spacing: .3em; color: rgba(255,255,255,.78); }
 .b-period svg { margin-top: -18px; }
 
