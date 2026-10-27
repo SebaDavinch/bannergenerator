@@ -1,11 +1,12 @@
 import { useCallback } from 'react'
 import {
-  Award, Building2, CalendarClock, Clapperboard, Gauge, Globe2, Images, MapPinned, Plane, Plus, Radar, RefreshCw, Route, Shuffle, Ticket, Type, Users, X,
+  Award, Building2, CalendarClock, Clapperboard, Gauge, Globe2, Images, MapPinned, Plane, Plus, Radar, RefreshCw, Shuffle, Ticket, Type, Users, X,
 } from 'lucide-react'
 import { toRef, useAirportDb } from '../data/airports'
 import { useVatsimDb } from '../data/vatsim'
 import { projectById, useProjects } from '../data/projects'
 import { MapOptions } from './MapOptions'
+import { RouteBoard } from './RouteBoard'
 import type { MapView } from '../types'
 import { searchAircraftPhotos } from '../photos/aircraft'
 import { searchLandmarks, searchMood } from '../photos/landmarks'
@@ -16,7 +17,6 @@ import { COUNT_TYPES, UI, type UiCopy } from '../i18n'
 import { AircraftPicker } from '../ui/AircraftPicker'
 import { AirportPicker, AirportSummary } from '../ui/AirportPicker'
 import { Button, Card, Field, Grid, Segmented, Select, Slider, Switch, TextArea, TextInput } from '../ui/controls'
-import { LegsEditor } from '../ui/LegsEditor'
 import { PhotoPicker } from '../ui/PhotoPicker'
 import { AirportList, DivisionPicker, FirPicker, LogoPicker } from './pickers'
 
@@ -101,10 +101,10 @@ export function TourForm() {
   return (
     <>
       <Card title={t.basics} icon={Type}><TitleFields title={d.title} description={d.description} onChange={set} t={t} /></Card>
-      <Card title={t.route} icon={Route} actions={
+      <RouteBoard title={t.route} tracks={[{ key: 'tour', legs: d.legs, onChange: (legs) => set({ legs }) }]} actions={
         <Segmented size="sm" value={d.layout} onChange={(layout) => set({ layout, map: { ...d.map, numbers: layout === 'itinerary' || d.map.numbers } })}
           options={[{ value: 'chips', label: t.layoutChips }, { value: 'itinerary', label: t.layoutItinerary }]} />
-      }><LegsEditor legs={d.legs} onChange={(legs) => set({ legs })} /></Card>
+      } />
       <MapCard view={d.map} onChange={(map) => set({ map })} />
       <RewardCard value={d} onChange={set} t={t} />
     </>
@@ -120,7 +120,7 @@ export function RosterForm({ mode }: { mode: 'roster' | 'curated-roster' }) {
   return (
     <>
       <Card title={t.basics} icon={Type}><TitleFields title={d.title} description={d.description} onChange={set} t={t} /></Card>
-      <Card title={t.route} icon={Route}><LegsEditor legs={d.legs} onChange={(legs: Leg[]) => set({ legs })} withNote={mode === 'curated-roster'} /></Card>
+      <RouteBoard title={t.route} tracks={[{ key: mode, legs: d.legs, onChange: (legs: Leg[]) => set({ legs }), withNote: mode === 'curated-roster' }]} />
       <Card title={t.visual} icon={Images} actions={
         <Segmented size="sm" value={d.visual} onChange={(v: VisualMode) => set({ visual: v })}
           options={[{ value: 'aircraft', label: t.visualAircraft }, { value: 'map', label: t.visualMap }]} />
@@ -270,7 +270,7 @@ export function SlottedForm() {
         ))}
         {d.waves.length < 4 && <Button size="sm" icon={Plus} onClick={() => set({ waves: [...d.waves, { id: uid(), label: `${t.waveDefault} ${d.waves.length + 1}`, openTime: '', condition: '' }] })}>{t.addWave}</Button>}
       </Card>
-      <Card title={t.route} icon={Route}><LegsEditor legs={d.legs} onChange={(legs) => set({ legs })} /></Card>
+      <RouteBoard title={t.route} tracks={[{ key: 'slotted', legs: d.legs, onChange: (legs) => set({ legs }) }]} />
       <Card title={t.visual} icon={Images} actions={
         <Segmented size="sm" value={d.visual} onChange={(v: VisualMode) => set({ visual: v })}
           options={[{ value: 'map', label: t.visualMap }, { value: 'aircraft', label: t.visualAircraft }, { value: 'photo', label: t.visualPhoto }]} />
@@ -326,12 +326,10 @@ export function CollabForm() {
         </>
       ) : (
         <>
-          <Card title={`${t.legs} ${a.short}`} icon={Route}>
-            <LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={a.colors.route} />
-          </Card>
-          <Card title={`${t.legs} ${b.short}`} icon={Route}>
-            <LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={b.colors.route} />
-          </Card>
+          <RouteBoard tracks={[
+            { key: 'a', label: `${t.legs} ${a.short}`, accent: a.colors.route, legs: d.vnwsLegs, onChange: (vnwsLegs) => set({ vnwsLegs }) },
+            { key: 'b', label: `${t.legs} ${b.short}`, accent: b.colors.route, legs: d.ragLegs, onChange: (ragLegs) => set({ ragLegs }) },
+          ]} />
         </>
       )}
       <Card title={t.reward} icon={Award} actions={
@@ -426,8 +424,10 @@ export function VatsimForm() {
             <Field label={t.firs}><FirPicker value={d.firs} divisions={d.divisions} onChange={(firs) => set({ firs })} /></Field>
           </Card>
           <Card title={t.projects} icon={Building2}><ProjectPair value={d.projects ?? ['nws', 'rag']} onChange={(projects) => set({ projects })} /></Card>
-          <Card title={`${t.legs} ${projectById(d.projects?.[0] ?? 'nws').short}`} icon={Route}><LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={projectById(d.projects?.[0] ?? 'nws').colors.route} /></Card>
-          <Card title={`${t.legs} ${projectById(d.projects?.[1] ?? 'rag').short}`} icon={Route}><LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={projectById(d.projects?.[1] ?? 'rag').colors.route} /></Card>
+          <RouteBoard tracks={[
+            { key: 'a', label: `${t.legs} ${projectById(d.projects?.[0] ?? 'nws').short}`, accent: projectById(d.projects?.[0] ?? 'nws').colors.route, legs: d.vnwsLegs, onChange: (vnwsLegs) => set({ vnwsLegs }) },
+            { key: 'b', label: `${t.legs} ${projectById(d.projects?.[1] ?? 'rag').short}`, accent: projectById(d.projects?.[1] ?? 'rag').colors.route, legs: d.ragLegs, onChange: (ragLegs) => set({ ragLegs }) },
+          ]} />
         </>
       )}
 
