@@ -107,7 +107,6 @@ export function FocusBanner(ctx: Ctx<FocusData>) {
   const { data, brand, lang } = ctx
   const a = data.airport
   const city = (data.cityOverride || cityName(a, lang)).trim()
-  const coord = a ? `${Math.abs(a.lat).toFixed(2)}°${a.lat >= 0 ? 'N' : 'S'}  ${Math.abs(a.lon).toFixed(2)}°${a.lon >= 0 ? 'E' : 'W'}` : ''
   return (
     <Frame brand={brand}>
       <PhotoLayer photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } }) : undefined} />
@@ -116,23 +115,35 @@ export function FocusBanner(ctx: Ctx<FocusData>) {
         <ModeBadge label={modeLabel(ctx.mode, lang)} brand={brand} />
         <Title text={city || '—'} size={titleSize(city, { max: 168, min: 88, width: 1150, lines: 1.6 })} />
         {data.tagline && <p className="b-tagline">{data.tagline}</p>}
-        {a && (
-          <div className="b-airport">
-            <span className={`fi fi-${a.country.toLowerCase()} b-airport__flag`} />
-            <span className="b-airport__name">{a.name}</span>
-            <span className="b-airport__icao" style={{ background: brand.gradient }}>{a.icao}</span>
-            {a.iata && <span className="b-airport__iata">{a.iata}</span>}
-          </div>
-        )}
-        {coord && <div className="b-coord"><MapPin size={22} /> {coord}</div>}
+        <AirportPlate airport={a} icaoBg={brand.gradient} />
       </div>
       <Period text={data.period} brand={brand} />
-      {data.photo.title && (data.photo.src || data.photo.local?.startsWith('data:')) && (
-        <div className="b-photo-caption">{data.photo.title}</div>
-      )}
+      <PhotoCaption photo={data.photo} />
       <Footer ctx={ctx} points={data.bonusPoints} registration={data.registrationRequired} />
     </Frame>
   )
+}
+
+/** Flag, name, ICAO/IATA and coordinates of a focus airport. */
+function AirportPlate({ airport: a, icaoBg }: { airport: FocusData['airport']; icaoBg: string }) {
+  if (!a) return null
+  const coord = `${Math.abs(a.lat).toFixed(2)}°${a.lat >= 0 ? 'N' : 'S'}  ${Math.abs(a.lon).toFixed(2)}°${a.lon >= 0 ? 'E' : 'W'}`
+  return (
+    <>
+      <div className="b-airport">
+        <span className={`fi fi-${a.country.toLowerCase()} b-airport__flag`} />
+        <span className="b-airport__name">{a.name}</span>
+        <span className="b-airport__icao" style={{ background: icaoBg }}>{a.icao}</span>
+        {a.iata && <span className="b-airport__iata">{a.iata}</span>}
+      </div>
+      <div className="b-coord"><MapPin size={22} /> {coord}</div>
+    </>
+  )
+}
+
+function PhotoCaption({ photo }: { photo: FocusData['photo'] }) {
+  if (!photo.title || !(photo.src || photo.local?.startsWith('data:'))) return null
+  return <div className="b-photo-caption">{photo.title}</div>
 }
 
 // ── Tour ───────────────────────────────────────────────────────────────────
@@ -523,32 +534,58 @@ export function CollabBanner(ctx: Ctx<CollabData>) {
   const a = useLegRoute(data.vnwsLegs, 'nws', nws.route, nws.routeGlow)
   const b = useLegRoute(data.ragLegs, 'rag', rag.route, rag.routeGlow)
   const brand = ctx.brand
+  const pair = `linear-gradient(90deg, ${nws.accent}, ${rag.accent})`
+  const focus = data.layout === 'focus'
+  const city = (data.cityOverride || cityName(data.airport, lang)).trim()
+  const tagline = data.tagline || data.title
   return (
     <Frame brand={{ ...brand, gradient: `linear-gradient(180deg, ${nws.accent} 0%, ${nws.accent} 50%, ${rag.accent} 50%, ${rag.accent} 100%)` }}>
-      <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[a.route, b.route]} accent={brand.accent} />
+      {focus ? (
+        <>
+          <PhotoLayer photo={data.photo} onChange={ctx.patch ? (p) => ctx.patch!({ photo: { ...data.photo, ...p } }) : undefined} />
+          <div className="b-scrim b-scrim--focus" />
+        </>
+      ) : (
+        <MapLayer project={ctx.project} lang={lang} view={data.map} onView={patchMapOf(ctx)} routes={[a.route, b.route]} accent={brand.accent} />
+      )}
       <div className="b-content">
         <div className="b-badge-row">
-          <span className="b-badge" style={{ background: `linear-gradient(90deg, ${nws.accent}, ${rag.accent})` }}>{c.joint}</span>
+          <span className="b-badge" style={{ background: pair }}>{focus ? `${c.joint} · ${modeLabel('focus-airport', lang)}` : c.joint}</span>
           <span className="b-badge-rule" />
         </div>
-        <Title text={data.title} width={900} size={titleSize(data.title, { max: 112, min: 66, width: 760, lines: 2.4 })} />
-        {data.description && <p className="b-desc">{data.description}</p>}
-        <div className="b-collab-routes">
-          <div className="b-collab-route" style={{ ['--c' as string]: nws.route }}><b>{nws.short}</b><LegChips legs={data.vnwsLegs} brand={nws} /></div>
-          <div className="b-collab-route" style={{ ['--c' as string]: rag.route }}><b>{rag.short}</b><LegChips legs={data.ragLegs} brand={rag} /></div>
-        </div>
+        {focus ? (
+          <>
+            <Title text={city || '—'} size={titleSize(city, { max: 168, min: 88, width: 1150, lines: 1.6 })} />
+            {tagline && <p className="b-tagline">{tagline}</p>}
+            <AirportPlate airport={data.airport} icaoBg={pair} />
+          </>
+        ) : (
+          <>
+            <Title text={data.title} width={900} size={titleSize(data.title, { max: 112, min: 66, width: 760, lines: 2.4 })} />
+            {data.description && <p className="b-desc">{data.description}</p>}
+            <div className="b-collab-routes">
+              <div className="b-collab-route" style={{ ['--c' as string]: nws.route }}><b>{nws.short}</b><LegChips legs={data.vnwsLegs} brand={nws} /></div>
+              <div className="b-collab-route" style={{ ['--c' as string]: rag.route }}><b>{rag.short}</b><LegChips legs={data.ragLegs} brand={rag} /></div>
+            </div>
+          </>
+        )}
         {data.partners && <div className="b-partners"><Users size={22} /> {data.partners}</div>}
       </div>
       <Period text={data.period} brand={brand} />
-      <div className="b-collab-rewards">
-        {[{ b: nws, pts: data.vnwsBonus, reg: data.vnwsRegistration, label: nws.short }, { b: rag, pts: data.ragBonus, reg: data.ragRegistration, label: rag.short }].map((x) => (
-          <div className="b-collab-reward" key={x.label}>
-            <span className="b-collab-reward__who" style={{ background: x.b.gradient }}>{x.label}</span>
-            <span className="b-collab-reward__pts"><b style={{ color: x.b.accentSoft }}>+{x.pts || 0}</b> {c.bonus}</span>
-            {x.reg && <span className="b-collab-reward__reg">{c.registration}</span>}
-          </div>
-        ))}
-      </div>
+      {focus && <PhotoCaption photo={data.photo} />}
+      {data.pointsMode === 'merged' ? (
+        <Reward points={data.bonus} registration={data.registration} lang={lang} brand={nws} label={`${c.reward} · ${nws.short} × ${rag.short}`} />
+      ) : (
+        <div className="b-collab-rewards">
+          {[{ b: nws, pts: data.vnwsBonus, reg: data.vnwsRegistration, label: nws.short }, { b: rag, pts: data.ragBonus, reg: data.ragRegistration, label: rag.short }].map((x) => (
+            <div className="b-collab-reward" key={x.label}>
+              <span className="b-collab-reward__who" style={{ background: x.b.gradient }}>{x.label}</span>
+              <span className="b-collab-reward__pts"><b style={{ color: x.b.accentSoft }}>+{x.pts || 0}</b> {c.bonus}</span>
+              {x.reg && <span className="b-collab-reward__reg">{c.registration}</span>}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="b-logos b-logos--pair">
         <BrandLogo project={nws.project} style={{ height: Math.min(62, nws.project.logoHeight) }} />
         <span className="b-logos__x">×</span>

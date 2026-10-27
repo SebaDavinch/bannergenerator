@@ -191,6 +191,18 @@ export interface SlottedData extends Common {
 export interface CollabData {
   /** Host and partner project ids. */
   projects: [string, string]
+  /** routes = one map with both projects' legs; focus = a shared focus airport over a photo. */
+  layout: 'routes' | 'focus'
+  /** split = a reward per project; merged = one shared reward for both. */
+  pointsMode: 'split' | 'merged'
+  /** Shared reward (pointsMode = merged). */
+  bonus: string
+  registration: boolean
+  /** Focus layout. */
+  airport: AirportRef | null
+  cityOverride: string
+  tagline: string
+  photo: PhotoState
   title: string
   description: string
   period: string

@@ -92,7 +92,8 @@ export function defaultModeData(): ModeDataMap {
       bonusPoints: '350', registrationRequired: true, period: '',
     },
     event: {
-      projects: ['nws', 'rag'],
+      projects: ['nws', 'rag'], layout: 'routes', pointsMode: 'split', bonus: '350', registration: false,
+      airport: ULLI, cityOverride: '', tagline: '', photo: { ...emptyPhoto(0.1), src: '', local: asset('brand/default-city.jpg') },
       title: 'Northern Bridge Joint Event', description: 'One map, two projects, separate colored legs for each route.',
       period: '', partners: '',
       vnwsLegs: legsFrom('ULLI-UUEE\nUUEE-URSS'), ragLegs: legsFrom('UUDD-ULLI\nULLI-UUDD'),

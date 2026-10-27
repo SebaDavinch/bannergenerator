@@ -295,31 +295,68 @@ export function CollabForm() {
   const [d, set] = useMode('event')
   const a = projectById(d.projects?.[0] ?? 'nws')
   const b = projectById(d.projects?.[1] ?? 'rag')
+  const focus = d.layout === 'focus'
+  const city = d.cityOverride || d.airport?.city || ''
+  const search = useCallback((signal: AbortSignal) => searchLandmarks(d.airport, city, signal).then((r) => r.photos), [d.airport, city])
   return (
     <>
-      <Card title={t.projects} icon={Building2}><ProjectPair value={d.projects ?? ['nws', 'rag']} onChange={(projects) => set({ projects })} /></Card>
+      <Card title={t.projects} icon={Building2} actions={
+        <Segmented size="sm" value={d.layout} onChange={(layout) => set({ layout })}
+          options={[{ value: 'routes', label: t.layoutRoutes }, { value: 'focus', label: t.layoutFocus }]} />
+      }><ProjectPair value={d.projects ?? ['nws', 'rag']} onChange={(projects) => set({ projects })} /></Card>
       <Card title={t.basics} icon={Type}>
-        <TitleFields title={d.title} description={d.description} onChange={set} t={t} />
+        <TitleFields title={d.title} description={focus ? undefined : d.description} onChange={set} t={t} />
         <Grid>
           <Field label={t.partners}><TextInput value={d.partners} onValue={(v) => set({ partners: v })} /></Field>
           <Field label={t.period}><TextInput value={d.period} placeholder={t.periodPh} onValue={(v) => set({ period: v.toUpperCase() })} /></Field>
         </Grid>
       </Card>
-      <Card title={`${t.legs} ${a.short}`} icon={Route}>
-        <LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={a.colors.route} />
-        <Grid>
-          <Field label={`${t.bonus} ${a.short}`}><TextInput mono value={d.vnwsBonus} onValue={(v) => set({ vnwsBonus: v })} /></Field>
-          <Switch checked={d.vnwsRegistration} onChange={(v) => set({ vnwsRegistration: v })} label={`${t.registration} · ${a.short}`} />
-        </Grid>
+      {focus ? (
+        <>
+          <Card title={t.airport} icon={MapPinned} hint={t.airportSearch}>
+            <AirportPicker value={d.airport?.icao ?? ''} placeholder={t.airportSearch} onPick={(ap) => set({ airport: toRef(ap), cityOverride: '' })} />
+            {d.airport && <AirportSummary icao={d.airport.icao} />}
+            <Grid>
+              <Field label={t.cityOverride} hint={t.cityOverrideHint}><TextInput value={d.cityOverride} placeholder={d.airport?.city} onValue={(v) => set({ cityOverride: v })} /></Field>
+              <Field label={t.tagline}><TextInput value={d.tagline} placeholder={d.title || t.taglinePh} onValue={(v) => set({ tagline: v })} /></Field>
+            </Grid>
+          </Card>
+          <PhotoPicker photo={d.photo} onChange={photoPatch(d.photo, set)} search={search} searchKey={`${d.airport?.icao}|${city}`}
+            title={t.landmarks} hint="Wikidata · Wikimedia Commons" note={false} />
+        </>
+      ) : (
+        <>
+          <Card title={`${t.legs} ${a.short}`} icon={Route}>
+            <LegsEditor legs={d.vnwsLegs} onChange={(vnwsLegs) => set({ vnwsLegs })} accent={a.colors.route} />
+          </Card>
+          <Card title={`${t.legs} ${b.short}`} icon={Route}>
+            <LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={b.colors.route} />
+          </Card>
+        </>
+      )}
+      <Card title={t.reward} icon={Award} actions={
+        <Segmented size="sm" value={d.pointsMode} onChange={(pointsMode) => set({ pointsMode })}
+          options={[{ value: 'split', label: t.pointsSplit }, { value: 'merged', label: t.pointsMerged }]} />
+      }>
+        {d.pointsMode === 'merged' ? (
+          <>
+            <Field label={`${t.bonus} ${a.short} × ${b.short}`}><TextInput mono inputMode="numeric" value={d.bonus} onValue={(v) => set({ bonus: v })} /></Field>
+            <Switch checked={d.registration} onChange={(v) => set({ registration: v })} label={t.registration} />
+          </>
+        ) : (
+          <>
+            <Grid>
+              <Field label={`${t.bonus} ${a.short}`}><TextInput mono inputMode="numeric" value={d.vnwsBonus} onValue={(v) => set({ vnwsBonus: v })} /></Field>
+              <Field label={`${t.bonus} ${b.short}`}><TextInput mono inputMode="numeric" value={d.ragBonus} onValue={(v) => set({ ragBonus: v })} /></Field>
+            </Grid>
+            <Grid>
+              <Switch checked={d.vnwsRegistration} onChange={(v) => set({ vnwsRegistration: v })} label={`${t.registration} · ${a.short}`} />
+              <Switch checked={d.ragRegistration} onChange={(v) => set({ ragRegistration: v })} label={`${t.registration} · ${b.short}`} />
+            </Grid>
+          </>
+        )}
       </Card>
-      <Card title={`${t.legs} ${b.short}`} icon={Route}>
-        <LegsEditor legs={d.ragLegs} onChange={(ragLegs) => set({ ragLegs })} accent={b.colors.route} />
-        <Grid>
-          <Field label={`${t.bonus} ${b.short}`}><TextInput mono value={d.ragBonus} onValue={(v) => set({ ragBonus: v })} /></Field>
-          <Switch checked={d.ragRegistration} onChange={(v) => set({ ragRegistration: v })} label={`${t.registration} · ${b.short}`} />
-        </Grid>
-      </Card>
-      <MapCard view={d.map} onChange={(map) => set({ map })} />
+      {!focus && <MapCard view={d.map} onChange={(map) => set({ map })} />}
     </>
   )
 }
