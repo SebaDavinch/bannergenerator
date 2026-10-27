@@ -82,7 +82,7 @@ export function defaultModeData(): ModeDataMap {
       bonusPoints: '350', registrationRequired: false, period: 'APRIL 2026',
     },
     slotted: {
-      title: 'Peak Hour Ops', network: 'VATSIM', date: '', bookingUrl: 'https://vamsys.io/bookings/nws', showQr: true,
+      title: 'Peak Hour Ops', network: 'VATSIM', date: '', bookingUrl: 'https://vamsys.io/bookings/nws',
       legs: legsFrom('ULLI-UUEE'),
       waves: [
         { id: uid(), label: 'Wave 1', openTime: '17:00Z', condition: 'Auto-release 15 min prior' },

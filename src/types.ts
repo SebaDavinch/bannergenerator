@@ -179,7 +179,6 @@ export interface SlottedData extends Common {
   network: string
   date: string
   bookingUrl: string
-  showQr: boolean
   legs: Leg[]
   waves: Wave[]
   visual: VisualMode

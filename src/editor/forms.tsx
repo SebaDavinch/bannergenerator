@@ -257,7 +257,6 @@ export function SlottedForm() {
             {projectById(state.brand).vamsys && <Button size="sm" variant="ghost" onClick={() => set({ bookingUrl: `https://vamsys.io/bookings/${projectById(state.brand).vamsys}` })}>{projectById(state.brand).short}</Button>}
           </div>
         </Field>
-        <Switch checked={d.showQr} onChange={(v) => set({ showQr: v })} label={t.qr} />
       </Card>
       <Card title={t.waves} icon={CalendarClock}>
         {d.waves.map((w) => (

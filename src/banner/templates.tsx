@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { asset } from '../lib/asset'
-import QRCode from 'qrcode'
 import { ArrowLeftRight, CalendarDays, Clock, Gauge, Globe2, MapPin, Plane, Radio, Route as RouteIcon, Users } from 'lucide-react'
 import { airportSync, cityName, greatCircleNm, useAirportDb } from '../data/airports'
 import { useVatsimDb } from '../data/vatsim'
@@ -445,39 +444,16 @@ export function GoalBanner(ctx: Ctx<GoalData>) {
 }
 
 // ── Slotted Event ─────────────────────────────────────────────────────────
-function useQr(text: string, color: string) {
-  const [svg, setSvg] = useState('')
-  useEffect(() => {
-    if (!text) return
-    QRCode.toString(text, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: color, light: '#00000000' } })
-      .then(setSvg)
-      .catch(() => setSvg(''))
-  }, [text, color])
-  return text ? svg : ''
-}
-
-function SlotTicket({ data, brand, lang }: { data: SlottedData; brand: BrandTheme; lang: Locale }) {
+/** Booking call-to-action as one quiet line under the reward. */
+function SlotBooking({ url, brand, lang }: { url: string; brand: BrandTheme; lang: Locale }) {
   const c = BANNER_COPY[lang]
-  const url = data.bookingUrl.trim()
-  const qr = useQr(data.showQr ? url : '', '#0b0f17')
-  if (!url) return null
-  const display = url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  const display = url.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  if (!display) return null
   return (
-    <div className="b-ticket">
-      <div className="b-ticket__main">
-        <div className="b-ticket__eyebrow" style={{ color: brand.accentSoft }}><span className="b-ticket__dot" style={{ background: brand.accent, boxShadow: `0 0 14px ${brand.accent}` }} />{c.slotsOpen}</div>
-        <div className="b-ticket__title">{c.bookSlot}</div>
-        <div className="b-ticket__url">{display}</div>
-      </div>
-      <div className="b-ticket__perf" />
-      {qr ? (
-        <div className="b-ticket__stub">
-          <div className="b-ticket__qr" dangerouslySetInnerHTML={{ __html: qr }} />
-          <span>{c.scan}</span>
-        </div>
-      ) : (
-        <div className="b-ticket__stub b-ticket__stub--plain" style={{ background: brand.gradient }}><Plane size={44} color="#fff" /></div>
-      )}
+    <div className="b-booking">
+      <span className="b-booking__dot" style={{ background: brand.accent, boxShadow: `0 0 12px ${brand.accent}` }} />
+      <span className="b-booking__label">{c.bookSlot}</span>
+      <span className="b-booking__url" style={{ color: brand.accentSoft }}>{display}</span>
     </div>
   )
 }
@@ -515,8 +491,8 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
       <Period text={data.period} brand={brand} />
       <div className="b-slot-footer">
         <Reward points={data.bonusPoints} registration={data.registrationRequired} lang={lang} brand={brand} style={{ position: 'static' }} />
+        <SlotBooking url={data.bookingUrl} brand={brand} lang={lang} />
       </div>
-      <SlotTicket data={data} brand={brand} lang={lang} />
       <div className="b-logos">
         {vatsim && <img className="b-netlogo" src={asset('brand/vatsim-logo.png')} alt="VATSIM" />}
         <BrandLogo project={ctx.project} />
