@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { asset } from '../lib/asset'
 import type { MapTheme } from '../types'
 import { apiBase } from './fleet'
 
@@ -39,13 +40,13 @@ export const BUILT_IN_PROJECTS: Project[] = [
     id: 'nws', name: 'Nordwind Virtual', short: 'vNWS', icao: 'NWS', callsign: 'NWS', vamsys: 'nws', fleet: 'vnws',
     airlines: ['Nordwind Airlines', 'Pegas Fly'],
     colors: { primary: '#E31E24', secondary: '#8FB4FF', route: '#FF4E57', dark: '#0D1018' },
-    logo: '/brand/nordwind-logo.png', logoHeight: 74, mapTheme: 'night', builtIn: true,
+    logo: asset('brand/nordwind-logo.png'), logoHeight: 74, mapTheme: 'night', builtIn: true,
   },
   {
     id: 'rag', name: 'Russian Airways Group', short: 'RAG', icao: 'RAG', callsign: 'RAG', vamsys: 'rag', fleet: 'rag',
     airlines: ['Rossiya Airlines', 'Aeroflot', 'Pobeda'],
     colors: { primary: '#3C8DFF', secondary: '#BFD845', route: '#5EE2F2', dark: '#0B1220' },
-    logo: '/brand/rag-logo.png', logoHeight: 64, mapTheme: 'night', builtIn: true,
+    logo: asset('brand/rag-logo.png'), logoHeight: 64, mapTheme: 'night', builtIn: true,
   },
   {
     id: 'kar', name: 'IKAR Virtual', short: 'IKAR', icao: 'KAR', callsign: 'KAR', vamsys: 'nws', fleet: 'vnws',

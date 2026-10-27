@@ -51,7 +51,7 @@ async function fetchImage(url: string): Promise<Blob> {
  * PNG export working (no tainted canvas) and keep the preview light.
  */
 export function resolveImage(url: string): Promise<string> {
-  if (!url || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/')) return Promise.resolve(url)
+  if (!url || !/^https?:/i.test(url)) return Promise.resolve(url)
   let p = cache.get(url)
   if (!p) {
     p = fetchImage(url)

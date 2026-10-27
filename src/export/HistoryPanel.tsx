@@ -5,19 +5,13 @@ import { useStore } from '../state/store'
 import type { ModeDataMap, ModeId } from '../types'
 import { MODES, UI } from '../i18n'
 import { Button, Select } from '../ui/controls'
+import { saveFile } from '../lib/save'
 import { clearHistory, exportHistoryJson, historyBlob, importHistoryJson, removeHistory, updateHistory, useHistory, type HistoryItem } from './history'
 
 /** Local calendar day (YYYY-MM-DD). */
 const dayKey = (d: Date | string) => new Date(d).toLocaleDateString('sv-SE')
 
-function saveBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  window.setTimeout(() => URL.revokeObjectURL(url), 2000)
-}
+const saveBlob = (blob: Blob, name: string) => { void saveFile(blob, name).catch(() => undefined) }
 
 export function HistoryPanel({ onClose }: { onClose: () => void }) {
   const { state, set, update } = useStore()

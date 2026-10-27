@@ -1,4 +1,5 @@
 import type { AirportRef, Leg, MapView, ModeDataMap, PhotoState, StudioState } from '../types'
+import { asset } from '../lib/asset'
 
 let idSeq = 0
 export const uid = () => `${Date.now().toString(36)}${(idSeq++).toString(36)}`
@@ -46,7 +47,7 @@ export function defaultModeData(): ModeDataMap {
   return {
     'focus-airport': {
       airport: ULLI, cityOverride: '', tagline: '', bonusPoints: '350', registrationRequired: false, period: '',
-      photo: { ...emptyPhoto(0.1), src: '', local: '/brand/default-city.jpg' },
+      photo: { ...emptyPhoto(0.1), src: '', local: asset('brand/default-city.jpg') },
     },
     tour: {
       layout: 'chips',

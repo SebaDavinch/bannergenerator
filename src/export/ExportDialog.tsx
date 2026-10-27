@@ -5,6 +5,7 @@ import type { ModeId } from '../types'
 import { MODES, UI } from '../i18n'
 import { Button, Field, Segmented, Slider, Switch, TextInput } from '../ui/controls'
 import { pushHistory } from './history'
+import { saveFile } from '../lib/save'
 import { projectById } from '../data/projects'
 import { bannerTitle, defaultName, renderBanner } from './render'
 
@@ -84,10 +85,12 @@ export function ExportDialog({ stageRef, onClose }: { stageRef: RefObject<HTMLDi
   const download = async () => {
     const r = result ?? (await render())
     if (!r) return
-    const a = document.createElement('a')
-    a.href = r.url
-    a.download = `${name || 'banner'}.${ext}`
-    a.click()
+    try {
+      await saveFile(r.blob, `${name || 'banner'}.${ext}`)
+    } catch (e) {
+      setError(String((e as { message?: string })?.message || e))
+      return
+    }
     remember(r.blob)
   }
 

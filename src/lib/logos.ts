@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { asset } from './asset'
 import { allProjects, useProjects } from '../data/projects'
 
 export interface LogoItem { id: string; name: string; src: string; builtIn?: boolean }
 
 const KEY = 'banner-studio:logos'
-const BUILT_IN: LogoItem[] = [{ id: 'vatsim', name: 'VATSIM', src: '/brand/vatsim-logo.png', builtIn: true }]
+const BUILT_IN: LogoItem[] = [{ id: 'vatsim', name: 'VATSIM', src: asset('brand/vatsim-logo.png'), builtIn: true }]
 
 /** Every vAMSYS project that has artwork shows up in the library. */
 const projectLogos = (): LogoItem[] => allProjects().filter((p) => p.logo).map((p) => ({ id: p.id, name: p.name, src: p.logo, builtIn: true }))

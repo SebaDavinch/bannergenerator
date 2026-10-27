@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { asset } from '../lib/asset'
 import QRCode from 'qrcode'
 import { ArrowLeftRight, CalendarDays, Clock, Gauge, Globe2, MapPin, Plane, Radio, Route as RouteIcon, Users } from 'lucide-react'
 import { airportSync, cityName, greatCircleNm, useAirportDb } from '../data/airports'
@@ -464,7 +465,7 @@ export function SlottedBanner(ctx: Ctx<SlottedData>) {
       </div>
       <SlotTicket data={data} brand={brand} lang={lang} />
       <div className="b-logos">
-        {vatsim && <img className="b-netlogo" src="/brand/vatsim-logo.png" alt="VATSIM" />}
+        {vatsim && <img className="b-netlogo" src={asset('brand/vatsim-logo.png')} alt="VATSIM" />}
         <BrandLogo project={ctx.project} />
       </div>
     </Frame>
@@ -617,7 +618,7 @@ export function VatsimBanner(ctx: Ctx<VatsimData> & { logos: { id: string; src: 
             {data.hosts && <span className="b-hosts__text">{data.hosts}</span>}
           </div>
         )}
-        <img className="b-netlogo" src="/brand/vatsim-logo.png" alt="VATSIM" />
+        <img className="b-netlogo" src={asset('brand/vatsim-logo.png')} alt="VATSIM" />
         <BrandLogo project={ctx.project} />
       </div>
     </Frame>
