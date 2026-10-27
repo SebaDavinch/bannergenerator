@@ -35,10 +35,15 @@ export interface Project {
   hidden?: boolean
 }
 
+/**
+ * Projects are virtual airlines on vAMSYS. Airlines flown inside a project
+ * (IKAR, Southwind within Nordwind Virtual) are not projects of their own;
+ * they live in the project's `airlines` list.
+ */
 export const BUILT_IN_PROJECTS: Project[] = [
   {
     id: 'nws', name: 'Nordwind Virtual', short: 'vNWS', icao: 'NWS', callsign: 'NWS', vamsys: 'nws', fleet: 'vnws',
-    airlines: ['Nordwind Airlines', 'Pegas Fly'],
+    airlines: ['Nordwind Airlines', 'Pegas Fly', 'Ikar', 'Southwind Airlines'],
     colors: { primary: '#E31E24', secondary: '#8FB4FF', route: '#FF4E57', dark: '#0D1018' },
     logo: asset('brand/nordwind-logo.png'), logoHeight: 74, mapTheme: 'night', builtIn: true,
   },
@@ -47,18 +52,6 @@ export const BUILT_IN_PROJECTS: Project[] = [
     airlines: ['Rossiya Airlines', 'Aeroflot', 'Pobeda'],
     colors: { primary: '#3C8DFF', secondary: '#BFD845', route: '#5EE2F2', dark: '#0B1220' },
     logo: asset('brand/rag-logo.png'), logoHeight: 64, mapTheme: 'night', builtIn: true,
-  },
-  {
-    id: 'kar', name: 'IKAR Virtual', short: 'IKAR', icao: 'KAR', callsign: 'KAR', vamsys: 'nws', fleet: 'vnws',
-    airlines: ['Ikar', 'Pegas Fly'],
-    colors: { primary: '#2563EB', secondary: '#F59E0B', route: '#60A5FA', dark: '#0A1020' },
-    logo: '', logoHeight: 64, mapTheme: 'atlas', builtIn: true,
-  },
-  {
-    id: 'stw', name: 'Southwind Virtual', short: 'Southwind', icao: 'STW', callsign: 'STW', vamsys: 'nws', fleet: 'vnws',
-    airlines: ['Southwind Airlines'],
-    colors: { primary: '#F97316', secondary: '#22D3EE', route: '#FB923C', dark: '#140C08' },
-    logo: '', logoHeight: 64, mapTheme: 'dusk', builtIn: true,
   },
 ]
 

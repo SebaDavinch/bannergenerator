@@ -23,7 +23,7 @@ export function ProjectSwitcher({ onManage }: { onManage: () => void }) {
     <div className="pswitch" ref={ref}>
       <button type="button" className="pswitch__btn" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span className="pswitch__dot" style={{ background: current.colors.primary, boxShadow: `0 0 12px ${current.colors.primary}88` }} />
-        <b>{current.short}</b>
+        <b>{current.name}</b>
         <ChevronDown size={14} />
       </button>
       {open && (
@@ -33,7 +33,7 @@ export function ProjectSwitcher({ onManage }: { onManage: () => void }) {
             <button type="button" role="menuitem" key={p.id} className={`pswitch__item ${p.id === state.brand ? 'is-active' : ''}`}
               onClick={() => { set({ brand: p.id }); setOpen(false) }}>
               <span className="pswitch__dot" style={{ background: `linear-gradient(135deg, ${p.colors.primary} 50%, ${p.colors.secondary} 50%)` }} />
-              <span className="pswitch__text"><b>{p.short}</b><span>{p.name} · {p.icao}</span></span>
+              <span className="pswitch__text"><b>{p.name}</b><span>{[p.short, p.icao !== p.short ? p.icao : '', p.vamsys ? `vamsys.io/${p.vamsys}` : ''].filter(Boolean).join(' · ')}</span></span>
               {p.id === state.brand && <Check size={14} />}
             </button>
           ))}

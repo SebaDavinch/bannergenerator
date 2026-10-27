@@ -73,7 +73,7 @@ export function ProjectsDialog({ onClose }: { onClose: () => void }) {
             {projects.map((p) => (
               <button type="button" key={p.id} className={`project-item ${p.id === selId ? 'is-active' : ''} ${p.hidden ? 'is-hidden' : ''}`} onClick={() => select(p)}>
                 <span className="project-item__dot" style={{ background: `linear-gradient(135deg, ${p.colors.primary} 50%, ${p.colors.secondary} 50%)` }} />
-                <span className="project-item__text"><b>{p.short}</b><span>{p.name}</span></span>
+                <span className="project-item__text"><b>{p.name}</b><span>{p.icao !== p.short ? `${p.short} · ${p.icao}` : p.short}</span></span>
                 {p.builtIn && <span className="project-item__tag">{t.builtIn}</span>}
               </button>
             ))}
